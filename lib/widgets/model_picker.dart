@@ -16,48 +16,49 @@ class _ModelPickerPageState extends State<ModelPickerPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 40),
-          Text('🧠', style: const TextStyle(fontSize: 48)),
-          const SizedBox(height: 16),
-          Text(
-            'Choisissez votre modèle',
-            style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Vous pourrez changer ce choix plus tard.',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurface.withOpacity(0.6),
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('🧠', style: const TextStyle(fontSize: 40)),
+            const SizedBox(height: 12),
+            Text(
+              'Choisissez votre modèle',
+              style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
-          ),
-          const SizedBox(height: 32),
-          ...availableModels.map((model) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: _ModelCard(
-              model: model,
-              isSelected: _selected == model.id,
-              onTap: () => setState(() => _selected = model.id),
+            const SizedBox(height: 6),
+            Text(
+              'Vous pourrez changer ce choix plus tard.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
+              ),
             ),
-          )),
-          const Spacer(),
-          FilledButton(
-            onPressed: _selected == null ? null : () {
-              widget.onModelSelected(_selected!);
-              widget.onNext();
-            },
-            style: FilledButton.styleFrom(
-              minimumSize: const Size(double.infinity, 56),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            const SizedBox(height: 24),
+            ...availableModels.map((model) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _ModelCard(
+                model: model,
+                isSelected: _selected == model.id,
+                onTap: () => setState(() => _selected = model.id),
+              ),
+            )),
+            const SizedBox(height: 24),
+            FilledButton(
+              onPressed: _selected == null ? null : () {
+                widget.onModelSelected(_selected!);
+                widget.onNext();
+              },
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(double.infinity, 56),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              child: const Text('Continuer', style: TextStyle(fontSize: 18)),
             ),
-            child: const Text('Continuer', style: TextStyle(fontSize: 18)),
-          ),
-          const SizedBox(height: 16),
-        ],
+            const SizedBox(height: 16),
+          ],
+        ),
       ),
     );
   }
@@ -93,11 +94,8 @@ class _ModelCard extends StatelessWidget {
                       children: [
                         Row(
                           children: [
-                            Text(
-                              model.displayName,
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                            Text(model.displayName,
+                              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(width: 8),
                             Text(model.batteryLabel),
@@ -111,13 +109,11 @@ class _ModelCard extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            _Chip(label: model.sizeLabel, icon: Icons.storage),
-                            const SizedBox(width: 8),
-                            _Chip(label: model.speedLabel, icon: Icons.speed),
-                          ],
-                        ),
+                        Row(children: [
+                          _Chip(label: model.sizeLabel, icon: Icons.storage),
+                          const SizedBox(width: 8),
+                          _Chip(label: model.speedLabel, icon: Icons.speed),
+                        ]),
                       ],
                     ),
                   ),
@@ -137,8 +133,7 @@ class _ModelCard extends StatelessWidget {
                 color: theme.colorScheme.primary,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Text(
-                '✓ Recommandé',
+              child: Text('✓ Recommandé',
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: theme.colorScheme.onPrimary,
                   fontWeight: FontWeight.bold,
