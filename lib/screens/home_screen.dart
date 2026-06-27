@@ -1,48 +1,17 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:camera/camera.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../services/audio_guide_service.dart';
 import '../services/settings_service.dart';
 import 'model_download_screen.dart';
 import 'player_screen.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
-  @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  CameraController? _cameraController;
-  bool _cameraReady = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _initCamera();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<AudioGuideService>().init();
-    });
-  }
-
-  Future<void> _initCamera() async {
-    final cameras = await availableCameras();
-    if (cameras.isEmpty) return;
-    _cameraController = CameraController(cameras.first, ResolutionPreset.medium);
-    await _cameraController!.initialize();
-    if (mounted) setState(() => _cameraReady = true);
-  }
-
-  @override
-  void dispose() {
-    _cameraController?.dispose();
-    super.dispose();
-  }
-
-  Future<void> _takePicture() async {
+  Future<void> _takePicture(BuildContext context) async {
     final guide = context.read<AudioGuideService>();
 
     if (!guide.modelDownloaded) {
@@ -52,12 +21,16 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    if (_cameraController == null || !_cameraReady) return;
+    final picker = ImagePicker();
+    final xFile = await picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 85,
+      maxWidth: 1280,
+    );
 
-    final xFile = await _cameraController!.takePicture();
+    if (xFile == null || !context.mounted) return;
+
     final imageFile = File(xFile.path);
-
-    if (!mounted) return;
 
     Navigator.push(context, MaterialPageRoute(
       builder: (_) => PlayerScreen(imageFile: imageFile),
@@ -70,127 +43,109 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Camera preview
-          if (_cameraReady && _cameraController != null)
-            CameraPreview(_cameraController!)
-          else
-            Container(
-              color: Colors.black,
-              child: const Center(
-                child: CircularProgressIndicator(),
-              ),
-            ),
-
-          // Overlay gradient
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.black.withOpacity(0.4),
-                  Colors.transparent,
-                  Colors.black.withOpacity(0.7),
-                ],
-              ),
-            ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              theme.colorScheme.surface,
+              theme.colorScheme.surfaceContainerHigh,
+            ],
           ),
-
-          // Top bar
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '🎧 Audio Guide',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.settings, color: Colors.white),
-                    onPressed: () => context.read<SettingsService>().resetOnboarding(),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Bottom controls
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Column(
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Consumer<AudioGuideService>(
-                      builder: (context, guide, _) {
-                        if (!guide.modelDownloaded) {
-                          return Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.primaryContainer.withOpacity(0.9),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.download, size: 16),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Modèle à télécharger',
-                                  style: theme.textTheme.labelMedium,
-                                ),
-                              ],
-                            ),
-                          );
-                        }
-                        return const SizedBox.shrink();
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Shutter button
-                    GestureDetector(
-                      onTap: _takePicture,
-                      child: Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white,
-                          border: Border.all(color: Colors.white.withOpacity(0.5), width: 4),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.3),
-                              blurRadius: 16,
-                            )
-                          ],
-                        ),
-                        child: const Icon(Icons.camera_alt, size: 36, color: Colors.black87),
-                      ),
-                    ).animate().scale(delay: 300.ms),
-
-                    const SizedBox(height: 12),
                     Text(
-                      'Prenez une photo',
-                      style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
+                      '🎧 Audio Guide',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.settings_outlined),
+                      onPressed: () =>
+                          context.read<SettingsService>().resetOnboarding(),
                     ),
                   ],
                 ),
-              ),
+                const Expanded(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.camera_alt_outlined,
+                            size: 100, color: Colors.white12),
+                        SizedBox(height: 24),
+                        Text(
+                          'Pointez votre appareil\nvers un lieu ou un monument',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              color: Colors.white38, fontSize: 16, height: 1.5),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Consumer<AudioGuideService>(
+                  builder: (context, guide, _) {
+                    if (!guide.modelDownloaded) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primaryContainer
+                                .withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                                color: theme.colorScheme.primary
+                                    .withOpacity(0.3)),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.download_outlined,
+                                  color: theme.colorScheme.primary, size: 20),
+                              const SizedBox(width: 10),
+                              const Expanded(
+                                child: Text(
+                                  'Téléchargez le modèle IA pour commencer',
+                                  style: TextStyle(fontSize: 13),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
+                FilledButton.icon(
+                  onPressed: () => _takePicture(context),
+                  icon: const Icon(Icons.camera_alt, size: 24),
+                  label: const Text('Prendre une photo',
+                      style: TextStyle(fontSize: 18)),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 64),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20)),
+                  ),
+                ).animate().scale(delay: 200.ms),
+                const SizedBox(height: 16),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
