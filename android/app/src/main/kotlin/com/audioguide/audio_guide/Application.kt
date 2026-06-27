@@ -1,5 +1,5 @@
 package com.audioguide.audio_guide
 
-import io.flutter.app.FlutterApplication
+import android.app.Application
 
-class Application : FlutterApplication()
+class Application : Application()
