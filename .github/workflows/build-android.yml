@@ -25,6 +25,11 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
+      - name: Install Android SDK 36
+        run: |
+          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --install "platforms;android-36" "build-tools;36.0.0"
+          echo "✅ SDK 36 installed"
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -32,12 +37,7 @@ jobs:
           channel: 'stable'
 
       - name: Bootstrap Flutter project
-        run: |
-          # --platforms android won't overwrite existing files like build.gradle
-          flutter create --project-name audio_guide --org com.audioguide --platforms android .
-
-      - name: Verify SDK versions
-        run: grep -E "minSdk|compileSdk|targetSdk" android/app/build.gradle
+        run: flutter create --project-name audio_guide --org com.audioguide --platforms android .
 
       - name: Get dependencies
         run: flutter pub get
