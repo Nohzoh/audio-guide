@@ -34,13 +34,33 @@ jobs:
       - name: Bootstrap Flutter project
         run: flutter create --project-name audio_guide --org com.audioguide --platforms android .
 
+      - name: Show generated build.gradle
+        run: cat android/app/build.gradle
+
       - name: Fix Android SDK versions
         run: |
-          sed -i 's/minSdkVersion 21/minSdkVersion 24/' android/app/build.gradle
-          sed -i 's/compileSdkVersion [0-9]*/compileSdkVersion 36/' android/app/build.gradle
-          sed -i 's/targetSdkVersion [0-9]*/targetSdkVersion 36/' android/app/build.gradle
-          echo "=== build.gradle after fix ==="
-          grep -E "minSdk|compileSdk|targetSdk" android/app/build.gradle
+          python3 - <<'PYEOF'
+          import re
+
+          with open('android/app/build.gradle', 'r') as f:
+              content = f.read()
+
+          print("BEFORE:")
+          print(content)
+
+          content = re.sub(r'minSdkVersion\s+\d+', 'minSdkVersion 24', content)
+          content = re.sub(r'compileSdkVersion\s+\d+', 'compileSdkVersion 36', content)
+          content = re.sub(r'targetSdkVersion\s+\d+', 'targetSdkVersion 36', content)
+          content = re.sub(r'minSdk\s*=\s*\d+', 'minSdk = 24', content)
+          content = re.sub(r'compileSdk\s*=\s*\d+', 'compileSdk = 36', content)
+          content = re.sub(r'targetSdk\s*=\s*\d+', 'targetSdk = 36', content)
+
+          with open('android/app/build.gradle', 'w') as f:
+              f.write(content)
+
+          print("AFTER:")
+          print(content)
+          PYEOF
 
       - name: Get dependencies
         run: flutter pub get
@@ -54,9 +74,8 @@ jobs:
         if: failure()
         run: |
           echo "## Build errors" >> $GITHUB_STEP_SUMMARY
-          grep -i "error\|Error\|exception\|Because\|failed" build_output.txt | head -50 >> $GITHUB_STEP_SUMMARY || true
           echo '```' >> $GITHUB_STEP_SUMMARY
-          tail -80 build_output.txt >> $GITHUB_STEP_SUMMARY
+          tail -100 build_output.txt >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Upload APK
