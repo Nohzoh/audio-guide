@@ -32,35 +32,12 @@ jobs:
           channel: 'stable'
 
       - name: Bootstrap Flutter project
-        run: flutter create --project-name audio_guide --org com.audioguide --platforms android .
-
-      - name: Show generated build.gradle
-        run: cat android/app/build.gradle
-
-      - name: Fix Android SDK versions
         run: |
-          python3 - <<'PYEOF'
-          import re
+          # --platforms android won't overwrite existing files like build.gradle
+          flutter create --project-name audio_guide --org com.audioguide --platforms android .
 
-          with open('android/app/build.gradle', 'r') as f:
-              content = f.read()
-
-          print("BEFORE:")
-          print(content)
-
-          content = re.sub(r'minSdkVersion\s+\d+', 'minSdkVersion 24', content)
-          content = re.sub(r'compileSdkVersion\s+\d+', 'compileSdkVersion 36', content)
-          content = re.sub(r'targetSdkVersion\s+\d+', 'targetSdkVersion 36', content)
-          content = re.sub(r'minSdk\s*=\s*\d+', 'minSdk = 24', content)
-          content = re.sub(r'compileSdk\s*=\s*\d+', 'compileSdk = 36', content)
-          content = re.sub(r'targetSdk\s*=\s*\d+', 'targetSdk = 36', content)
-
-          with open('android/app/build.gradle', 'w') as f:
-              f.write(content)
-
-          print("AFTER:")
-          print(content)
-          PYEOF
+      - name: Verify SDK versions
+        run: grep -E "minSdk|compileSdk|targetSdk" android/app/build.gradle
 
       - name: Get dependencies
         run: flutter pub get
