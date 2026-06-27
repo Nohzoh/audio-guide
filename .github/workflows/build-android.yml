@@ -25,11 +25,11 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Setup Android SDK 34
+      - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android platform 34
-        run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
+      - name: Install Android platform 35
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
       - name: Setup Flutter 3.24.5
         uses: subosito/flutter-action@v2
@@ -43,8 +43,6 @@ jobs:
       - name: Patch AndroidManifest with permissions
         run: |
           python3 - <<'PYEOF'
-          import re
-
           manifest_path = 'android/app/src/main/AndroidManifest.xml'
           with open(manifest_path, 'r') as f:
               content = f.read()
@@ -57,11 +55,6 @@ jobs:
               <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
               <uses-feature android:name="android.hardware.camera" android:required="false"/>
           """
-
-          # Insert permissions before <application
-          content = content.replace('<application', permissions + '\n    <application', 1)
-
-          # Add FileProvider inside <application before closing tag
           provider = """
               <provider
                   android:name="androidx.core.content.FileProvider"
@@ -73,13 +66,13 @@ jobs:
                       android:resource="@xml/file_paths"/>
               </provider>
           """
+
+          content = content.replace('<application', permissions + '\n    <application', 1)
           content = content.replace('</application>', provider + '\n</application>')
 
           with open(manifest_path, 'w') as f:
               f.write(content)
-
-          print("✅ AndroidManifest patched")
-          print(content)
+          print("✅ Manifest patched")
           PYEOF
 
       - name: Create FileProvider paths
@@ -90,7 +83,6 @@ jobs:
           <paths>
               <external-path name="external_files" path="."/>
               <cache-path name="cache" path="."/>
-              <external-cache-path name="external_cache" path="."/>
           </paths>
           XML
 
