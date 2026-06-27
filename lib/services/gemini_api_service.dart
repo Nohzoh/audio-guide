@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'ai_service.dart';
 
-/// Provider cloud Gemini (Option A — fallback ou futur Pixel 11)
 class GeminiApiService implements AIService {
   final String apiKey;
   GenerativeModel? _model;
@@ -18,10 +17,7 @@ class GeminiApiService implements AIService {
 
   @override
   Future<void> initialize() async {
-    _model = GenerativeModel(
-      model: 'gemini-1.5-flash',
-      apiKey: apiKey,
-    );
+    _model = GenerativeModel(model: 'gemini-1.5-flash', apiKey: apiKey);
   }
 
   @override
@@ -29,15 +25,10 @@ class GeminiApiService implements AIService {
     if (_model == null) await initialize();
 
     final bytes = await imageFile.readAsBytes();
-    final prompt = '''
-Tu es un guide audio culturel expert. Analyse cette image et génère un commentaire audio.
-
-Réponds UNIQUEMENT en JSON avec ce format exact :
-{
-  "title": "Nom court du lieu ou de l'objet (max 5 mots)",
-  "location": "Ville ou pays si identifiable, sinon null",
-  "script": "Commentaire audio de 3-4 phrases, ton chaleureux et informatif, comme un vrai guide. Commence directement par décrire ce que tu vois."
-}
+    const prompt = '''
+Tu es un guide audio culturel. Analyse cette image et génère un commentaire audio.
+Réponds UNIQUEMENT en JSON:
+{"title":"Nom du lieu (max 5 mots)","location":"Ville/pays ou null","script":"Commentaire 3-4 phrases, ton chaleureux."}
 ''';
 
     final content = [
@@ -51,12 +42,13 @@ Réponds UNIQUEMENT en JSON avec ce format exact :
     final text = response.text ?? '';
 
     try {
-      final jsonStr = text.replaceAll('```json', '').replaceAll('```', '').trim();
-      final json = jsonDecode(jsonStr);
+      final jsonStr =
+          text.replaceAll('```json', '').replaceAll('```', '').trim();
+      final parsed = jsonDecode(jsonStr) as Map<String, dynamic>;
       return AudioGuideResult(
-        title: json['title'] ?? 'Lieu inconnu',
-        script: json['script'] ?? text,
-        locationName: json['location'],
+        title: parsed['title'] as String? ?? 'Lieu inconnu',
+        script: parsed['script'] as String? ?? text,
+        locationName: parsed['location'] as String?,
       );
     } catch (_) {
       return AudioGuideResult(title: 'Analyse', script: text);
