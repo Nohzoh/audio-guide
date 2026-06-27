@@ -29,8 +29,7 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Install Android platform 34
-        run: |
-          sdkmanager "platforms;android-34" "build-tools;34.0.0"
+        run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
 
       - name: Setup Flutter 3.24.5
         uses: subosito/flutter-action@v2
@@ -40,6 +39,60 @@ jobs:
 
       - name: Bootstrap Flutter project
         run: flutter create --project-name audio_guide --org com.audioguide --platforms android .
+
+      - name: Patch AndroidManifest with permissions
+        run: |
+          python3 - <<'PYEOF'
+          import re
+
+          manifest_path = 'android/app/src/main/AndroidManifest.xml'
+          with open(manifest_path, 'r') as f:
+              content = f.read()
+
+          permissions = """
+              <uses-permission android:name="android.permission.CAMERA"/>
+              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+              <uses-permission android:name="android.permission.INTERNET"/>
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+              <uses-feature android:name="android.hardware.camera" android:required="false"/>
+          """
+
+          # Insert permissions before <application
+          content = content.replace('<application', permissions + '\n    <application', 1)
+
+          # Add FileProvider inside <application before closing tag
+          provider = """
+              <provider
+                  android:name="androidx.core.content.FileProvider"
+                  android:authorities="${applicationId}.fileprovider"
+                  android:exported="false"
+                  android:grantUriPermissions="true">
+                  <meta-data
+                      android:name="android.support.FILE_PROVIDER_PATHS"
+                      android:resource="@xml/file_paths"/>
+              </provider>
+          """
+          content = content.replace('</application>', provider + '\n</application>')
+
+          with open(manifest_path, 'w') as f:
+              f.write(content)
+
+          print("✅ AndroidManifest patched")
+          print(content)
+          PYEOF
+
+      - name: Create FileProvider paths
+        run: |
+          mkdir -p android/app/src/main/res/xml
+          cat > android/app/src/main/res/xml/file_paths.xml << 'XML'
+          <?xml version="1.0" encoding="utf-8"?>
+          <paths>
+              <external-path name="external_files" path="."/>
+              <cache-path name="cache" path="."/>
+              <external-cache-path name="external_cache" path="."/>
+          </paths>
+          XML
 
       - name: Get dependencies
         run: flutter pub get
