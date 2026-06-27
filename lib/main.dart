@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/settings_service.dart';
+import 'services/audio_guide_service.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/home_screen.dart';
 
@@ -10,8 +11,11 @@ void main() async {
   final settings = SettingsService();
   await settings.init();
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => settings,
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => settings),
+        ChangeNotifierProvider(create: (_) => AudioGuideService()),
+      ],
       child: const AudioGuideApp(),
     ),
   );
