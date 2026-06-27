@@ -42,6 +42,28 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
+  List<Widget> get _pages {
+    final pages = <Widget>[
+      _WelcomePage(onModeSelected: _onModeSelected),
+    ];
+    if (_selectedMode == AIMode.local || _selectedMode == AIMode.hybrid) {
+      pages.add(ModelPickerPage(
+        onModelSelected: (id) => setState(() => _selectedModelId = id),
+        onNext: _nextPage,
+      ));
+    }
+    if (_selectedMode == AIMode.cloud || _selectedMode == AIMode.hybrid) {
+      pages.add(CloudProviderPickerPage(
+        onKeysUpdated: (keys) => setState(() => _apiKeys = keys),
+        onFinish: _finish,
+      ));
+    }
+    if (_selectedMode == AIMode.local) {
+      pages.add(_ReadyPage(onFinish: _finish));
+    }
+    return pages;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -50,21 +72,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           controller: _pageController,
           physics: const NeverScrollableScrollPhysics(),
           onPageChanged: (i) => setState(() => _currentPage = i),
-          children: [
-            _WelcomePage(onModeSelected: _onModeSelected),
-            if (_selectedMode == AIMode.local || _selectedMode == AIMode.hybrid)
-              ModelPickerPage(
-                onModelSelected: (id) => setState(() => _selectedModelId = id),
-                onNext: _nextPage,
-              ),
-            if (_selectedMode == AIMode.cloud || _selectedMode == AIMode.hybrid)
-              CloudProviderPickerPage(
-                onKeysUpdated: (keys) => setState(() => _apiKeys = keys),
-                onFinish: _finish,
-              ),
-            if (_selectedMode == AIMode.local)
-              _ReadyPage(onFinish: _finish),
-          ],
+          children: _pages,
         ),
       ),
     );
@@ -78,57 +86,57 @@ class _WelcomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.all(24),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 40),
-          Text('👋', style: const TextStyle(fontSize: 48))
+          Text('👋', style: const TextStyle(fontSize: 40))
               .animate().fadeIn().slideY(begin: -0.2),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Text(
             'Bienvenue dans\nAudio Guide',
-            style: theme.textTheme.headlineLarge?.copyWith(
+            style: theme.textTheme.headlineMedium?.copyWith(
               fontWeight: FontWeight.bold,
             ),
           ).animate(delay: 100.ms).fadeIn().slideY(begin: 0.2),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             'Prenez une photo d\'un lieu,\nobtenez une explication audio instantanée.',
-            style: theme.textTheme.bodyLarge?.copyWith(
+            style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurface.withOpacity(0.7),
             ),
           ).animate(delay: 200.ms).fadeIn(),
-          const SizedBox(height: 48),
+          const SizedBox(height: 32),
           Text(
             'Comment voulez-vous utiliser l\'app ?',
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
             ),
           ).animate(delay: 300.ms).fadeIn(),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           ModeCard(
             emoji: '☁️',
             title: 'Utiliser mon compte en ligne',
-            subtitle: 'Connectez votre compte Anthropic, Google ou OpenAI\nMeilleure qualité, nécessite internet',
+            subtitle: 'Anthropic, Google ou OpenAI\nMeilleure qualité · nécessite internet',
             onTap: () => onModeSelected(AIMode.cloud),
           ).animate(delay: 400.ms).fadeIn().slideX(begin: 0.1),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           ModeCard(
             emoji: '📱',
             title: 'Tout sur mon téléphone',
-            subtitle: 'Fonctionne sans internet\nTéléchargement initial requis (600MB à 3GB)',
+            subtitle: 'Fonctionne sans internet\nTéléchargement initial requis',
             onTap: () => onModeSelected(AIMode.local),
           ).animate(delay: 500.ms).fadeIn().slideX(begin: 0.1),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           ModeCard(
             emoji: '⚡',
             title: 'Les deux (recommandé)',
-            subtitle: 'En ligne quand disponible,\nautomatiquement hors-ligne sinon',
+            subtitle: 'En ligne si disponible,\nhors-ligne sinon',
             isRecommended: true,
             onTap: () => onModeSelected(AIMode.hybrid),
           ).animate(delay: 600.ms).fadeIn().slideX(begin: 0.1),
+          const SizedBox(height: 16),
         ],
       ),
     );
