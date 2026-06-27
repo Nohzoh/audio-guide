@@ -7,7 +7,6 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
-# Annule les builds en cours si un nouveau push arrive
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -32,17 +31,28 @@ jobs:
           flutter-version: '3.22.0'
           channel: 'stable'
 
-      - name: Bootstrap Flutter project (generate missing native files)
-        run: |
-          flutter create --project-name audio_guide --org com.audioguide --platforms android .
+      - name: Bootstrap Flutter project
+        run: flutter create --project-name audio_guide --org com.audioguide --platforms android .
 
       - name: Get dependencies
         run: flutter pub get
 
       - name: Build APK (debug)
-        run: flutter build apk --debug
+        run: |
+          flutter build apk --debug 2>&1 | tee build_output.txt
+          exit ${PIPESTATUS[0]}
+
+      - name: Show errors on failure
+        if: failure()
+        run: |
+          echo "## Build errors" >> $GITHUB_STEP_SUMMARY
+          grep -i "error\|Error\|exception\|Because" build_output.txt | head -50 >> $GITHUB_STEP_SUMMARY || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -100 build_output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: audio-guide-debug-${{ github.sha }}
