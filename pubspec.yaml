@@ -21,7 +21,6 @@ dependencies:
   flutter_animate: ^4.5.0
   google_fonts: ^6.2.1
   flutter_tts: ^4.0.2
-  # MediaPipe LLM Inference
   google_generative_ai: ^0.4.3
 
 dev_dependencies:
@@ -33,4 +32,3 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
-    - assets/models/
