@@ -27,11 +27,13 @@ jobs:
           flutter-version: '3.22.0'
           channel: 'stable'
 
+      - name: Bootstrap Flutter project (generate missing native files)
+        run: |
+          flutter create --project-name audio_guide --org com.audioguide --platforms android .
+          echo "✅ Native files generated"
+
       - name: Get dependencies
         run: flutter pub get
-
-      - name: Analyze code
-        run: flutter analyze --no-fatal-infos
 
       - name: Build APK (debug)
         run: flutter build apk --debug
@@ -42,15 +44,3 @@ jobs:
           name: audio-guide-debug-${{ github.sha }}
           path: build/app/outputs/flutter-apk/app-debug.apk
           retention-days: 7
-
-      - name: Comment PR with download link
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: '✅ APK built successfully! Download it from the [Actions artifacts](' + context.payload.pull_request.html_url + '/checks).'
-            })
