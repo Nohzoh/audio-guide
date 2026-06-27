@@ -7,6 +7,11 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+# Annule les builds en cours si un nouveau push arrive
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -30,7 +35,6 @@ jobs:
       - name: Bootstrap Flutter project (generate missing native files)
         run: |
           flutter create --project-name audio_guide --org com.audioguide --platforms android .
-          echo "✅ Native files generated"
 
       - name: Get dependencies
         run: flutter pub get
