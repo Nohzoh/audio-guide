@@ -5,7 +5,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../services/audio_guide_service.dart';
 import '../services/settings_service.dart';
-import 'model_download_screen.dart';
 import 'player_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -13,13 +12,6 @@ class HomeScreen extends StatelessWidget {
 
   Future<void> _takePicture(BuildContext context) async {
     final guide = context.read<AudioGuideService>();
-
-    if (!guide.modelDownloaded) {
-      Navigator.push(context, MaterialPageRoute(
-        builder: (_) => const ModelDownloadScreen(),
-      ));
-      return;
-    }
 
     final picker = ImagePicker();
     final xFile = await picker.pickImage(
@@ -60,12 +52,11 @@ class HomeScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      '🎧 Audio Guide',
+                    Text('🎧 Audio Guide',
                       style: theme.textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -89,46 +80,13 @@ class HomeScreen extends StatelessWidget {
                           'Pointez votre appareil\nvers un lieu ou un monument',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                              color: Colors.white38, fontSize: 16, height: 1.5),
+                              color: Colors.white38,
+                              fontSize: 16,
+                              height: 1.5),
                         ),
                       ],
                     ),
                   ),
-                ),
-                Consumer<AudioGuideService>(
-                  builder: (context, guide, _) {
-                    if (!guide.modelDownloaded) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.primaryContainer
-                                .withOpacity(0.3),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                                color: theme.colorScheme.primary
-                                    .withOpacity(0.3)),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.download_outlined,
-                                  color: theme.colorScheme.primary, size: 20),
-                              const SizedBox(width: 10),
-                              const Expanded(
-                                child: Text(
-                                  'Téléchargez le modèle IA pour commencer',
-                                  style: TextStyle(fontSize: 13),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }
-                    return const SizedBox.shrink();
-                  },
                 ),
                 FilledButton.icon(
                   onPressed: () => _takePicture(context),
