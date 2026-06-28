@@ -17,7 +17,7 @@ class PlayerScreen extends StatelessWidget {
           return Stack(
             fit: StackFit.expand,
             children: [
-              // Image de fond
+              // Background image
               Image.file(imageFile, fit: BoxFit.cover),
               Container(
                 decoration: BoxDecoration(
@@ -26,45 +26,37 @@ class PlayerScreen extends StatelessWidget {
                     end: Alignment.bottomCenter,
                     colors: [
                       Colors.transparent,
-                      Colors.black.withOpacity(0.85),
+                      Colors.black.withOpacity(0.9),
                     ],
-                    stops: const [0.4, 1.0],
+                    stops: const [0.35, 1.0],
                   ),
                 ),
               ),
 
-              // Contenu
               SafeArea(
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Back button
-                    Align(
-                      alignment: Alignment.topLeft,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: IconButton(
-                          icon: const Icon(Icons.arrow_back, color: Colors.white),
-                          onPressed: () {
-                            guide.stop();
-                            Navigator.pop(context);
-                          },
-                        ),
-                      ),
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      onPressed: () {
+                        guide.stop();
+                        Navigator.pop(context);
+                      },
                     ),
 
                     const Spacer(),
 
-                    // Player card
+                    // Player content
                     Padding(
                       padding: const EdgeInsets.all(24),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // État
                           _StateIndicator(state: guide.state),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 12),
 
-                          // Titre
                           if (guide.lastResult != null) ...[
                             Text(
                               guide.lastResult!.title,
@@ -72,20 +64,28 @@ class PlayerScreen extends StatelessWidget {
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
                               ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ).animate().fadeIn().slideY(begin: 0.2),
+
                             if (guide.lastResult!.locationName != null) ...[
                               const SizedBox(height: 4),
                               Row(
                                 children: [
-                                  const Icon(Icons.location_on, color: Colors.white54, size: 14),
+                                  const Icon(Icons.location_on,
+                                      color: Colors.white54, size: 14),
                                   const SizedBox(width: 4),
-                                  Text(
-                                    guide.lastResult!.locationName!,
-                                    style: const TextStyle(color: Colors.white54),
+                                  Expanded(
+                                    child: Text(
+                                      guide.lastResult!.locationName!,
+                                      style: const TextStyle(color: Colors.white54),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
                                 ],
                               ),
                             ],
+
                             const SizedBox(height: 12),
                             Text(
                               guide.lastResult!.script,
@@ -93,21 +93,35 @@ class PlayerScreen extends StatelessWidget {
                                 color: Colors.white70,
                                 height: 1.5,
                               ),
-                              maxLines: 4,
+                              maxLines: 5,
                               overflow: TextOverflow.ellipsis,
                             ).animate().fadeIn(delay: 200.ms),
                           ],
 
+                          if (guide.state == GuideState.error)
+                            Container(
+                              margin: const EdgeInsets.only(top: 8),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                guide.errorMessage ?? 'Erreur inconnue',
+                                style: const TextStyle(color: Colors.redAccent),
+                              ),
+                            ),
+
                           const SizedBox(height: 24),
 
                           // Controls
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              if (guide.state == GuideState.speaking ||
-                                  guide.state == GuideState.paused) ...[
+                          if (guide.state == GuideState.speaking ||
+                              guide.state == GuideState.paused)
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
                                 IconButton.filled(
-                                  iconSize: 32,
+                                  iconSize: 36,
                                   icon: Icon(
                                     guide.state == GuideState.speaking
                                         ? Icons.pause
@@ -117,20 +131,16 @@ class PlayerScreen extends StatelessWidget {
                                 ),
                                 const SizedBox(width: 16),
                                 IconButton(
-                                  icon: const Icon(Icons.stop, color: Colors.white70),
+                                  icon: const Icon(Icons.stop_circle_outlined,
+                                      color: Colors.white70, size: 36),
                                   onPressed: () {
                                     guide.stop();
                                     Navigator.pop(context);
                                   },
                                 ),
                               ],
-                              if (guide.state == GuideState.error)
-                                Text(
-                                  guide.errorMessage ?? 'Erreur',
-                                  style: const TextStyle(color: Colors.redAccent),
-                                ),
-                            ],
-                          ),
+                            ),
+
                           const SizedBox(height: 16),
                         ],
                       ),
@@ -167,7 +177,7 @@ class _StateIndicator extends StatelessWidget {
           children: [
             const Icon(Icons.graphic_eq, color: Colors.greenAccent, size: 18),
             const SizedBox(width: 8),
-            const Text('Lecture...', style: TextStyle(color: Colors.white70)),
+            const Text('Lecture audio...', style: TextStyle(color: Colors.white70)),
           ],
         ).animate().fadeIn(),
       GuideState.paused => const Row(
