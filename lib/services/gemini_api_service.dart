@@ -17,7 +17,7 @@ class GeminiApiService implements AIService {
 
   @override
   Future<void> initialize() async {
-    _model = GenerativeModel(model: 'gemini-1.5-flash-latest', apiKey: apiKey);
+    _model = GenerativeModel(model: 'gemini-1.5-flash', apiKey: apiKey);
   }
 
   @override
