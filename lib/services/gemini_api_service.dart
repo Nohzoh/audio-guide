@@ -10,14 +10,14 @@ class GeminiApiService implements AIService {
   GeminiApiService({required this.apiKey});
 
   @override
-  String get displayName => 'Gemini 2.0 Flash (cloud)';
+  String get displayName => 'Gemini 1.5 Flash (cloud)';
 
   @override
   Future<bool> isAvailable() async => apiKey.isNotEmpty;
 
   @override
   Future<void> initialize() async {
-    _model = GenerativeModel(model: 'gemini-2.0-flash', apiKey: apiKey);
+    _model = GenerativeModel(model: 'gemini-1.5-flash-latest', apiKey: apiKey);
   }
 
   @override
