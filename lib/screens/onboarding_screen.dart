@@ -28,9 +28,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       return;
     }
     setState(() { _loading = true; _error = null; });
-    await context.read<SettingsService>().completeOnboarding(
-      apiKey: key,
-    );
+    await context.read<SettingsService>().completeOnboarding(apiKey: key);
   }
 
   @override
@@ -47,11 +45,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               Text('🎧', style: const TextStyle(fontSize: 48))
                   .animate().fadeIn().slideY(begin: -0.2),
               const SizedBox(height: 16),
-              Text(
-                'Audio Guide',
-                style: theme.textTheme.headlineLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+              Text('Audio Guide',
+                style: theme.textTheme.headlineLarge?.copyWith(fontWeight: FontWeight.bold),
               ).animate(delay: 100.ms).fadeIn(),
               const SizedBox(height: 8),
               Text(
@@ -61,25 +56,38 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 ),
               ).animate(delay: 200.ms).fadeIn(),
               const SizedBox(height: 48),
-              Text(
-                '🔑 Clé API Gemini',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      const Text('🔑', style: TextStyle(fontSize: 20)),
+                      const SizedBox(width: 8),
+                      Text('Clé API Anthropic',
+                        style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                    ]),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Obtenez votre clé sur console.anthropic.com\nRubrique "API Keys"',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurface.withOpacity(0.6),
+                      ),
+                    ),
+                  ],
                 ),
               ).animate(delay: 300.ms).fadeIn(),
-              const SizedBox(height: 8),
-              Text(
-                'Obtenez votre clé gratuite sur aistudio.google.com\n(1 500 requêtes/jour offertes)',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.6),
-                ),
-              ).animate(delay: 350.ms).fadeIn(),
               const SizedBox(height: 16),
               TextField(
                 controller: _controller,
                 obscureText: true,
                 decoration: InputDecoration(
-                  hintText: 'AIza...',
+                  hintText: 'sk-ant-...',
                   filled: true,
                   fillColor: theme.colorScheme.surfaceContainerHigh,
                   border: OutlineInputBorder(
@@ -96,20 +104,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 onPressed: _loading ? null : _finish,
                 style: FilledButton.styleFrom(
                   minimumSize: const Size(double.infinity, 56),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
                 child: _loading
-                    ? const SizedBox(
-                        width: 24, height: 24,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
+                    ? const SizedBox(width: 24, height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                     : const Text('C\'est parti !', style: TextStyle(fontSize: 18)),
               ).animate(delay: 500.ms).fadeIn(),
               const SizedBox(height: 16),
               Center(
                 child: Text(
-                  '🔒 Votre clé est stockée uniquement sur votre téléphone',
+                  '🔒 Clé stockée uniquement sur votre téléphone',
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurface.withOpacity(0.4),
