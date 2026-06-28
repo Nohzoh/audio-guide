@@ -10,14 +10,14 @@ class GeminiApiService implements AIService {
   GeminiApiService({required this.apiKey});
 
   @override
-  String get displayName => 'Gemini (cloud)';
+  String get displayName => 'Gemini 2.0 Flash (cloud)';
 
   @override
   Future<bool> isAvailable() async => apiKey.isNotEmpty;
 
   @override
   Future<void> initialize() async {
-    _model = GenerativeModel(model: 'gemini-1.5-flash', apiKey: apiKey);
+    _model = GenerativeModel(model: 'gemini-2.0-flash', apiKey: apiKey);
   }
 
   @override
@@ -26,9 +26,9 @@ class GeminiApiService implements AIService {
 
     final bytes = await imageFile.readAsBytes();
     const prompt = '''
-Tu es un guide audio culturel. Analyse cette image et génère un commentaire audio.
-Réponds UNIQUEMENT en JSON:
-{"title":"Nom du lieu (max 5 mots)","location":"Ville/pays ou null","script":"Commentaire 3-4 phrases, ton chaleureux."}
+Tu es un guide audio culturel expert. Analyse cette image et génère un commentaire audio.
+Réponds UNIQUEMENT en JSON valide, sans markdown :
+{"title":"Nom du lieu ou objet (max 5 mots)","location":"Ville ou pays si identifiable, sinon null","script":"Commentaire de 3-4 phrases, ton chaleureux et informatif. Commence directement par décrire ce que tu vois."}
 ''';
 
     final content = [
@@ -42,11 +42,10 @@ Réponds UNIQUEMENT en JSON:
     final text = response.text ?? '';
 
     try {
-      final jsonStr =
-          text.replaceAll('```json', '').replaceAll('```', '').trim();
+      final jsonStr = text.replaceAll('```json', '').replaceAll('```', '').trim();
       final parsed = jsonDecode(jsonStr) as Map<String, dynamic>;
       return AudioGuideResult(
-        title: parsed['title'] as String? ?? 'Lieu inconnu',
+        title: parsed['title'] as String? ?? 'Lieu analysé',
         script: parsed['script'] as String? ?? text,
         locationName: parsed['location'] as String?,
       );
