@@ -1,13 +1,13 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'gemini_api_service.dart';
+import 'anthropic_service.dart';
 import 'tts_service.dart';
 import 'ai_service.dart';
 
 enum GuideState { idle, analyzing, speaking, paused, error }
 
 class AudioGuideService extends ChangeNotifier {
-  GeminiApiService? _aiService;
+  AnthropicService? _aiService;
   final TtsService _ttsService = TtsService();
 
   GuideState _state = GuideState.idle;
@@ -17,12 +17,10 @@ class AudioGuideService extends ChangeNotifier {
   GuideState get state => _state;
   AudioGuideResult? get lastResult => _lastResult;
   String? get errorMessage => _errorMessage;
-
-  // Keep modelDownloaded true since we use cloud API
-  bool get modelDownloaded => _aiService != null;
+  bool get isReady => _aiService != null;
 
   void setApiKey(String apiKey) {
-    _aiService = GeminiApiService(apiKey: apiKey);
+    _aiService = AnthropicService(apiKey: apiKey);
     _ttsService.onComplete = () {
       _state = GuideState.idle;
       notifyListeners();
