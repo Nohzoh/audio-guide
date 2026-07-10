@@ -45,7 +45,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               Text('🎧', style: const TextStyle(fontSize: 48))
                   .animate().fadeIn().slideY(begin: -0.2),
               const SizedBox(height: 16),
-              Text('Audio Guide',
+              Text('AudioLens',
                 style: theme.textTheme.headlineLarge?.copyWith(fontWeight: FontWeight.bold),
               ).animate(delay: 100.ms).fadeIn(),
               const SizedBox(height: 8),
