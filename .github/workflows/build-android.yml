@@ -40,30 +40,31 @@ jobs:
       - name: Bootstrap Flutter project
         run: flutter create --project-name audio_guide --org com.audioguide --platforms android .
 
-      - name: Patch Kotlin version in settings.gradle
+      - name: Patch Kotlin to 2.1.0
         run: |
           python3 - <<'PYEOF'
           import re, os
 
-          # Flutter 3.24 uses settings.gradle with plugins block
-          settings_path = 'android/settings.gradle'
-          if os.path.exists(settings_path):
-              with open(settings_path, 'r') as f:
+          for path in ['android/settings.gradle', 'android/build.gradle']:
+              if not os.path.exists(path): continue
+              with open(path, 'r') as f:
                   content = f.read()
-              print("BEFORE settings.gradle:")
-              print(content)
-              # Update kotlin version to 1.9.22
+              # Patch plugins block (settings.gradle style)
               content = re.sub(
                   r'(id "org.jetbrains.kotlin.android" version ")[^"]*(")',
-                  r'\g<1>1.9.22\2',
+                  r'\g<1>2.1.0\2',
                   content
               )
-              with open(settings_path, 'w') as f:
+              # Patch ext.kotlin_version (build.gradle style)
+              content = re.sub(
+                  r'(ext\.kotlin_version\s*=\s*")[^"]*(")',
+                  r'\g<1>2.1.0\2',
+                  content
+              )
+              with open(path, 'w') as f:
                   f.write(content)
-              print("AFTER settings.gradle:")
-              print(content)
-          else:
-              print("No settings.gradle found, using build.gradle")
+              print(f"✅ Patched {path}")
+              print(content[:500])
           PYEOF
 
       - name: Patch AndroidManifest with permissions
