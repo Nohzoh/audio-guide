@@ -37,7 +37,7 @@ android {
 
     defaultConfig {
         applicationId "com.audioguide.audio_guide"
-        minSdkVersion 24
+        minSdkVersion 26
         targetSdkVersion 35
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
