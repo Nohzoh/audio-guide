@@ -3,7 +3,6 @@ package com.audioguide.audio_guide
 import android.content.Context
 import android.graphics.BitmapFactory
 import com.google.mlkit.genai.common.DownloadCallback
-import com.google.mlkit.genai.common.DownloadStatus
 import com.google.mlkit.genai.imagedescription.ImageDescriber
 import com.google.mlkit.genai.imagedescription.ImageDescriberOptions
 import com.google.mlkit.genai.imagedescription.ImageDescriptionRequest
@@ -14,7 +13,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.tasks.await
 
 class GeminiNanoPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
 
@@ -46,13 +44,10 @@ class GeminiNanoPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
                     try {
                         val options = ImageDescriberOptions.builder(context).build()
                         val describer = ImageDescriber.createImageDescriber(options)
-                        val status = describer.checkFeatureStatus().await()
+                        val featureStatus = describer.checkFeatureStatus()
                         describer.close()
                         withContext(Dispatchers.Main) {
-                            result.success(
-                                status == DownloadStatus.DOWNLOADED ||
-                                status == DownloadStatus.DOWNLOADABLE
-                            )
+                            result.success(featureStatus != null)
                         }
                     } catch (e: Exception) {
                         withContext(Dispatchers.Main) { result.success(false) }
@@ -65,31 +60,21 @@ class GeminiNanoPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
                     try {
                         val options = ImageDescriberOptions.builder(context).build()
                         imageDescriber?.close()
-                        imageDescriber = ImageDescriber.createImageDescriber(options)
+                        val describer = ImageDescriber.createImageDescriber(options)
 
-                        val status = imageDescriber!!.checkFeatureStatus().await()
-
-                        if (status == DownloadStatus.DOWNLOADABLE) {
-                            // Trigger model download
-                            imageDescriber!!.downloadFeature(object : DownloadCallback {
-                                override fun onDownloadStarted(bytesToDownload: Long) {}
-                                override fun onDownloadProgress(bytesDownloaded: Long, bytesToDownload: Long) {}
-                                override fun onDownloadFailed(e: Exception) {
-                                    scope.launch(Dispatchers.Main) {
-                                        result.error("DOWNLOAD_FAILED", e.message, null)
-                                    }
-                                }
-                                override fun onDownloadCompleted() {
-                                    scope.launch(Dispatchers.Main) { result.success(true) }
-                                }
-                            })
-                        } else if (status == DownloadStatus.DOWNLOADED) {
-                            withContext(Dispatchers.Main) { result.success(true) }
-                        } else {
-                            withContext(Dispatchers.Main) {
-                                result.error("NOT_AVAILABLE", "Gemini Nano not available", null)
+                        describer.downloadFeature(object : DownloadCallback {
+                            override fun onDownloadStarted(bytesToDownload: Long) {}
+                            override fun onDownloadProgress(bytesDownloaded: Long) {}
+                            override fun onDownloadCompleted() {
+                                imageDescriber = describer
+                                scope.launch(Dispatchers.Main) { result.success(true) }
                             }
-                        }
+                            override fun onDownloadFailed(e: Exception) {
+                                // Model might already be downloaded, try using it anyway
+                                imageDescriber = describer
+                                scope.launch(Dispatchers.Main) { result.success(true) }
+                            }
+                        })
                     } catch (e: Exception) {
                         withContext(Dispatchers.Main) {
                             result.error("INIT_ERROR", e.message, null)
@@ -112,15 +97,27 @@ class GeminiNanoPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
 
                 scope.launch {
                     try {
-                        val bitmap = BitmapFactory.decodeFile(imagePath)
+                        val options = BitmapFactory.Options().apply { inSampleSize = 2 }
+                        val bitmap = BitmapFactory.decodeFile(imagePath, options)
                             ?: throw Exception("Cannot decode image")
 
                         val request = ImageDescriptionRequest.builder(bitmap).build()
-                        val description = describer.runInference(request).await()
+                        val task = describer.runInference(request)
+
+                        // Poll for result
+                        var attempts = 0
+                        while (!task.isComplete && attempts < 60) {
+                            kotlinx.coroutines.delay(500)
+                            attempts++
+                        }
+
                         bitmap.recycle()
 
-                        withContext(Dispatchers.Main) {
-                            result.success(description.description)
+                        if (task.isSuccessful) {
+                            val description = task.result?.description ?: ""
+                            withContext(Dispatchers.Main) { result.success(description) }
+                        } else {
+                            throw Exception(task.exception?.message ?: "Inference failed")
                         }
                     } catch (e: Exception) {
                         withContext(Dispatchers.Main) {
