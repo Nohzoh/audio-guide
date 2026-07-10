@@ -12,22 +12,17 @@ class HomeScreen extends StatelessWidget {
 
   Future<void> _takePicture(BuildContext context) async {
     final guide = context.read<AudioGuideService>();
-
     final picker = ImagePicker();
     final xFile = await picker.pickImage(
       source: ImageSource.camera,
       imageQuality: 85,
       maxWidth: 1280,
     );
-
     if (xFile == null || !context.mounted) return;
-
     final imageFile = File(xFile.path);
-
     Navigator.push(context, MaterialPageRoute(
       builder: (_) => PlayerScreen(imageFile: imageFile),
     ));
-
     guide.analyzeAndPlay(imageFile);
   }
 
@@ -40,10 +35,7 @@ class HomeScreen extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              theme.colorScheme.surface,
-              theme.colorScheme.surfaceContainerHigh,
-            ],
+            colors: [theme.colorScheme.surface, theme.colorScheme.surfaceContainerHigh],
           ),
         ),
         child: SafeArea(
@@ -57,32 +49,54 @@ class HomeScreen extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text('🎧 Audio Guide',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                     ),
                     IconButton(
                       icon: const Icon(Icons.settings_outlined),
-                      onPressed: () =>
-                          context.read<SettingsService>().resetOnboarding(),
+                      onPressed: () => context.read<SettingsService>().resetOnboarding(),
                     ),
                   ],
+                ),
+                const SizedBox(height: 8),
+                Consumer<AudioGuideService>(
+                  builder: (context, guide, _) => Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          guide.providerName.contains('Nano')
+                              ? Icons.phone_android
+                              : Icons.cloud_outlined,
+                          size: 14,
+                          color: theme.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          guide.providerName.isEmpty ? 'Initialisation...' : guide.providerName,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
                 const Expanded(
                   child: Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.camera_alt_outlined,
-                            size: 100, color: Colors.white12),
+                        Icon(Icons.camera_alt_outlined, size: 100, color: Colors.white12),
                         SizedBox(height: 24),
                         Text(
                           'Pointez votre appareil\nvers un lieu ou un monument',
                           textAlign: TextAlign.center,
-                          style: TextStyle(
-                              color: Colors.white38,
-                              fontSize: 16,
-                              height: 1.5),
+                          style: TextStyle(color: Colors.white38, fontSize: 16, height: 1.5),
                         ),
                       ],
                     ),
@@ -91,12 +105,10 @@ class HomeScreen extends StatelessWidget {
                 FilledButton.icon(
                   onPressed: () => _takePicture(context),
                   icon: const Icon(Icons.camera_alt, size: 24),
-                  label: const Text('Prendre une photo',
-                      style: TextStyle(fontSize: 18)),
+                  label: const Text('Prendre une photo', style: TextStyle(fontSize: 18)),
                   style: FilledButton.styleFrom(
                     minimumSize: const Size(double.infinity, 64),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                   ),
                 ).animate().scale(delay: 200.ms),
                 const SizedBox(height: 16),
