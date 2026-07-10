@@ -63,7 +63,7 @@ class HomeScreen extends StatelessWidget {
                 const SizedBox(height: 16),
                 Row(
                   children: [
-                    Text('🎧 Audio Guide',
+                    Text('🎧 AudioLens',
                       style: theme.textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold),
                     ),
