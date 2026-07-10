@@ -330,7 +330,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                         child: Text(
                           widget.entry.script,
                           style: theme.textTheme.bodyMedium?.copyWith(
-                            color: Colors.white85,
+                            color: Colors.white.withOpacity(0.85),
                             height: 1.6,
                           ),
                         ),
