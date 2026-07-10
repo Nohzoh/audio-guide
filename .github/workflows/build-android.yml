@@ -40,13 +40,38 @@ jobs:
       - name: Bootstrap Flutter project
         run: flutter create --project-name audio_guide --org com.audioguide --platforms android .
 
+      - name: Patch Kotlin version in settings.gradle
+        run: |
+          python3 - <<'PYEOF'
+          import re, os
+
+          # Flutter 3.24 uses settings.gradle with plugins block
+          settings_path = 'android/settings.gradle'
+          if os.path.exists(settings_path):
+              with open(settings_path, 'r') as f:
+                  content = f.read()
+              print("BEFORE settings.gradle:")
+              print(content)
+              # Update kotlin version to 1.9.22
+              content = re.sub(
+                  r'(id "org.jetbrains.kotlin.android" version ")[^"]*(")',
+                  r'\g<1>1.9.22\2',
+                  content
+              )
+              with open(settings_path, 'w') as f:
+                  f.write(content)
+              print("AFTER settings.gradle:")
+              print(content)
+          else:
+              print("No settings.gradle found, using build.gradle")
+          PYEOF
+
       - name: Patch AndroidManifest with permissions
         run: |
           python3 - <<'PYEOF'
           manifest_path = 'android/app/src/main/AndroidManifest.xml'
           with open(manifest_path, 'r') as f:
               content = f.read()
-
           permissions = """
               <uses-permission android:name="android.permission.CAMERA"/>
               <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
@@ -66,10 +91,8 @@ jobs:
                       android:resource="@xml/file_paths"/>
               </provider>
           """
-
           content = content.replace('<application', permissions + '\n    <application', 1)
           content = content.replace('</application>', provider + '\n</application>')
-
           with open(manifest_path, 'w') as f:
               f.write(content)
           print("✅ Manifest patched")
