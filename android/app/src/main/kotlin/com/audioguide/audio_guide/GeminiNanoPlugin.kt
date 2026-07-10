@@ -2,8 +2,11 @@ package com.audioguide.audio_guide
 
 import android.content.Context
 import android.graphics.BitmapFactory
+import com.google.common.util.concurrent.FutureCallback
+import com.google.common.util.concurrent.Futures
 import com.google.mlkit.genai.common.DownloadCallback
 import com.google.mlkit.genai.common.GenAiException
+import com.google.mlkit.genai.imagedescription.ImageDescription
 import com.google.mlkit.genai.imagedescription.ImageDescriber
 import com.google.mlkit.genai.imagedescription.ImageDescriberOptions
 import com.google.mlkit.genai.imagedescription.ImageDescriptionRequest
@@ -14,15 +17,14 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
+import java.util.concurrent.Executors
 
 class GeminiNanoPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
 
     private lateinit var channel: MethodChannel
     private lateinit var context: Context
     private var imageDescriber: ImageDescriber? = null
+    private val executor = Executors.newSingleThreadExecutor()
     private val scope = CoroutineScope(Dispatchers.IO)
 
     companion object {
@@ -44,46 +46,51 @@ class GeminiNanoPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
         when (call.method) {
 
             "isAvailable" -> {
-                scope.launch {
-                    try {
-                        val options = ImageDescriberOptions.builder(context).build()
-                        val describer = ImageDescriber(options)
-                        describer.close()
-                        withContext(Dispatchers.Main) { result.success(true) }
-                    } catch (e: Exception) {
-                        withContext(Dispatchers.Main) { result.success(false) }
-                    }
+                try {
+                    val options = ImageDescriberOptions.builder(context).build()
+                    val describer = ImageDescription.getClient(options)
+                    val statusFuture = describer.checkFeatureStatus()
+                    Futures.addCallback(statusFuture, object : FutureCallback<Int> {
+                        override fun onSuccess(status: Int?) {
+                            describer.close()
+                            scope.launch(Dispatchers.Main) { result.success(true) }
+                        }
+                        override fun onFailure(t: Throwable) {
+                            describer.close()
+                            scope.launch(Dispatchers.Main) { result.success(false) }
+                        }
+                    }, executor)
+                } catch (e: Exception) {
+                    result.success(false)
                 }
             }
 
             "initialize" -> {
-                scope.launch {
-                    try {
-                        val options = ImageDescriberOptions.builder(context).build()
-                        imageDescriber?.close()
-                        val describer = ImageDescriber(options)
+                try {
+                    val options = ImageDescriberOptions.builder(context).build()
+                    imageDescriber?.close()
+                    val describer = ImageDescription.getClient(options)
 
-                        suspendCancellableCoroutine<Unit> { cont ->
-                            describer.downloadFeature(object : DownloadCallback {
-                                override fun onDownloadStarted(bytesToDownload: Long) {}
-                                override fun onDownloadProgress(bytesDownloaded: Long) {}
-                                override fun onDownloadCompleted() {
-                                    cont.resume(Unit)
-                                }
-                                override fun onDownloadFailed(e: GenAiException) {
-                                    // Model likely already downloaded, continue anyway
-                                    cont.resume(Unit)
-                                }
-                            })
-                        }
+                    val downloadFuture = describer.downloadFeature(object : DownloadCallback {
+                        override fun onDownloadStarted(bytesToDownload: Long) {}
+                        override fun onDownloadProgress(bytesDownloaded: Long) {}
+                        override fun onDownloadCompleted() {}
+                        override fun onDownloadFailed(e: GenAiException) {}
+                    })
 
-                        imageDescriber = describer
-                        withContext(Dispatchers.Main) { result.success(true) }
-                    } catch (e: Exception) {
-                        withContext(Dispatchers.Main) {
-                            result.error("INIT_ERROR", e.message, null)
+                    Futures.addCallback(downloadFuture, object : FutureCallback<Void> {
+                        override fun onSuccess(v: Void?) {
+                            imageDescriber = describer
+                            scope.launch(Dispatchers.Main) { result.success(true) }
                         }
-                    }
+                        override fun onFailure(t: Throwable) {
+                            // Model might already be downloaded
+                            imageDescriber = describer
+                            scope.launch(Dispatchers.Main) { result.success(true) }
+                        }
+                    }, executor)
+                } catch (e: Exception) {
+                    result.error("INIT_ERROR", e.message, null)
                 }
             }
 
@@ -106,19 +113,22 @@ class GeminiNanoPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
                             ?: throw Exception("Cannot decode image")
 
                         val request = ImageDescriptionRequest.builder(bitmap).build()
+                        val inferenceFuture = describer.runInference(request)
 
-                        val description = suspendCancellableCoroutine<String> { cont ->
-                            describer.runInference(request)
-                                .addOnSuccessListener { response ->
-                                    cont.resume(response.description)
+                        Futures.addCallback(inferenceFuture, object : FutureCallback<com.google.mlkit.genai.imagedescription.ImageDescriptionResult> {
+                            override fun onSuccess(response: com.google.mlkit.genai.imagedescription.ImageDescriptionResult?) {
+                                bitmap.recycle()
+                                scope.launch(Dispatchers.Main) {
+                                    result.success(response?.description ?: "")
                                 }
-                                .addOnFailureListener { e ->
-                                    cont.resumeWithException(e)
+                            }
+                            override fun onFailure(t: Throwable) {
+                                bitmap.recycle()
+                                scope.launch(Dispatchers.Main) {
+                                    result.error("INFERENCE_ERROR", t.message, null)
                                 }
-                        }
-
-                        bitmap.recycle()
-                        withContext(Dispatchers.Main) { result.success(description) }
+                            }
+                        }, executor)
                     } catch (e: Exception) {
                         withContext(Dispatchers.Main) {
                             result.error("INFERENCE_ERROR", e.message, null)
