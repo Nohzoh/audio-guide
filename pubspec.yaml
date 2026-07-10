@@ -1,5 +1,5 @@
 name: audio_guide
-description: AI-powered audio guide with local and cloud model support
+description: AudioLens - AI-powered audio guide
 publish_to: 'none'
 version: 0.1.0+1
 
