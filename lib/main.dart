@@ -11,9 +11,7 @@ void main() async {
   final settings = SettingsService();
   await settings.init();
   final guide = AudioGuideService();
-  if (settings.geminiApiKey.isNotEmpty) {
-    guide.setApiKey(settings.geminiApiKey);
-  }
+  await guide.init(settings.geminiApiKey.isNotEmpty ? settings.geminiApiKey : null);
   runApp(
     MultiProvider(
       providers: [
@@ -43,13 +41,10 @@ class AudioGuideApp extends StatelessWidget {
       ),
       home: Consumer<SettingsService>(
         builder: (context, settings, _) {
-          if (settings.isOnboardingComplete) {
-            // Wire API key whenever settings change
-            if (settings.geminiApiKey.isNotEmpty) {
-              context.read<AudioGuideService>().setApiKey(settings.geminiApiKey);
-            }
-            return const HomeScreen();
-          }
+          // If Gemini Nano available, skip onboarding entirely
+          final guide = context.read<AudioGuideService>();
+          if (guide.isReady) return const HomeScreen();
+          if (settings.isOnboardingComplete) return const HomeScreen();
           return const OnboardingScreen();
         },
       ),
