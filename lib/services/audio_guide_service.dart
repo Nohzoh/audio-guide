@@ -16,35 +16,33 @@ class AudioGuideService extends ChangeNotifier {
   AudioGuideResult? _lastResult;
   String? _errorMessage;
   String _providerName = '';
+  File? _lastImageFile;
 
   GuideState get state => _state;
   AudioGuideResult? get lastResult => _lastResult;
   String? get errorMessage => _errorMessage;
   String get providerName => _providerName;
+  File? get lastImageFile => _lastImageFile;
   bool get isReady => _aiService != null;
 
   Future<void> init(String? anthropicApiKey) async {
     _state = GuideState.initializing;
     notifyListeners();
 
-    // Try Gemini Nano first
     final nanoAvailable = await _nanoService.isAvailable();
     if (nanoAvailable) {
       try {
         await _nanoService.initialize();
         _aiService = _nanoService;
         _providerName = 'Gemini Nano';
-        debugPrint('Using Gemini Nano');
       } catch (e) {
         debugPrint('Gemini Nano init failed: $e');
       }
     }
 
-    // Fallback to Anthropic
     if (_aiService == null && anthropicApiKey != null && anthropicApiKey.isNotEmpty) {
       _aiService = AnthropicService(apiKey: anthropicApiKey);
       _providerName = 'Claude (cloud)';
-      debugPrint('Using Anthropic fallback');
     }
 
     _ttsService.onComplete = () {
@@ -66,17 +64,19 @@ class AudioGuideService extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> analyzeAndPlay(File imageFile) async {
+  // Returns the result so callers can save to history
+  Future<AudioGuideResult?> analyzeAndPlay(File imageFile) async {
     final service = _aiService;
     if (service == null) {
       _state = GuideState.error;
       _errorMessage = 'Aucun service IA disponible';
       notifyListeners();
-      return;
+      return null;
     }
 
     try {
       _state = GuideState.analyzing;
+      _lastImageFile = imageFile;
       _errorMessage = null;
       notifyListeners();
 
@@ -86,10 +86,12 @@ class AudioGuideService extends ChangeNotifier {
       notifyListeners();
 
       await _ttsService.speak(_lastResult!.script);
+      return _lastResult;
     } catch (e) {
       _state = GuideState.error;
       _errorMessage = e.toString().replaceAll('Exception: ', '');
       notifyListeners();
+      return null;
     }
   }
 
