@@ -99,6 +99,11 @@ jobs:
           print("✅ Manifest patched")
           PYEOF
 
+
+      - name: Set app name to AudioLens
+        run: |
+          sed -i 's/android:label="[^"]*"/android:label="AudioLens"/' android/app/src/main/AndroidManifest.xml
+          echo "✅ App name set to AudioLens"
       - name: Create FileProvider paths
         run: |
           mkdir -p android/app/src/main/res/xml
