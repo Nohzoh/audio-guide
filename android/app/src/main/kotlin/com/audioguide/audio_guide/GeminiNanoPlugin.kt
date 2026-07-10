@@ -124,7 +124,7 @@ class GeminiNanoPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
                             ImagePart(bitmap),
                             TextPart(AUDIO_GUIDE_PROMPT)
                         ) {
-                            maxOutputTokens = 512
+                            maxOutputTokens = 256
                         }
 
                         val response = model.generateContent(request)
