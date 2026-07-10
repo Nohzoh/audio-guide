@@ -1,26 +1,64 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'ai_service.dart';
+import 'gemini_nano_service.dart';
 import 'anthropic_service.dart';
 import 'tts_service.dart';
-import 'ai_service.dart';
 
-enum GuideState { idle, analyzing, speaking, paused, error }
+enum GuideState { idle, initializing, analyzing, speaking, paused, error }
 
 class AudioGuideService extends ChangeNotifier {
-  AnthropicService? _aiService;
+  AIService? _aiService;
   final TtsService _ttsService = TtsService();
+  final GeminiNanoService _nanoService = GeminiNanoService();
 
   GuideState _state = GuideState.idle;
   AudioGuideResult? _lastResult;
   String? _errorMessage;
+  String _providerName = '';
 
   GuideState get state => _state;
   AudioGuideResult? get lastResult => _lastResult;
   String? get errorMessage => _errorMessage;
+  String get providerName => _providerName;
   bool get isReady => _aiService != null;
+
+  Future<void> init(String? anthropicApiKey) async {
+    _state = GuideState.initializing;
+    notifyListeners();
+
+    // Try Gemini Nano first
+    final nanoAvailable = await _nanoService.isAvailable();
+    if (nanoAvailable) {
+      try {
+        await _nanoService.initialize();
+        _aiService = _nanoService;
+        _providerName = 'Gemini Nano';
+        debugPrint('Using Gemini Nano');
+      } catch (e) {
+        debugPrint('Gemini Nano init failed: $e');
+      }
+    }
+
+    // Fallback to Anthropic
+    if (_aiService == null && anthropicApiKey != null && anthropicApiKey.isNotEmpty) {
+      _aiService = AnthropicService(apiKey: anthropicApiKey);
+      _providerName = 'Claude (cloud)';
+      debugPrint('Using Anthropic fallback');
+    }
+
+    _ttsService.onComplete = () {
+      _state = GuideState.idle;
+      notifyListeners();
+    };
+
+    _state = GuideState.idle;
+    notifyListeners();
+  }
 
   void setApiKey(String apiKey) {
     _aiService = AnthropicService(apiKey: apiKey);
+    _providerName = 'Claude (cloud)';
     _ttsService.onComplete = () {
       _state = GuideState.idle;
       notifyListeners();
@@ -32,7 +70,7 @@ class AudioGuideService extends ChangeNotifier {
     final service = _aiService;
     if (service == null) {
       _state = GuideState.error;
-      _errorMessage = 'Clé API non configurée';
+      _errorMessage = 'Aucun service IA disponible';
       notifyListeners();
       return;
     }
