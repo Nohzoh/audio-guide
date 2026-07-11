@@ -47,39 +47,62 @@ class GeminiApiService implements AIService {
         'anecdote ou fait marquant, conclusion emotionnelle. '
         'Vise 300 a 400 mots, ton chaleureux et passionne.';
 
-    final url =
-        '${cfg.geminiApiUrl}/models/${cfg.geminiModel}:generateContent?key=$apiKey';
+    // Try primary model then fallbacks on 429
+    final modelsToTry = [
+      cfg.geminiModel,
+      ...cfg.geminiModelFallbacks.where((m) => m != cfg.geminiModel),
+    ];
 
-    final response = await http.post(
-      Uri.parse(url),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'contents': [
-          {
-            'parts': [
-              {
-                'inline_data': {
-                  'mime_type': 'image/jpeg',
-                  'data': base64Image,
-                }
-              },
-              {'text': prompt},
-            ]
-          }
-        ],
-        'generationConfig': {
-          'maxOutputTokens': cfg.geminiMaxTokens,
-          'temperature': cfg.geminiTemperature,
-        },
-      }),
-    ).timeout(const Duration(seconds: 30));
+    http.Response? response;
+    String? lastError;
 
-    if (response.statusCode != 200) {
-      final error = jsonDecode(response.body);
-      throw Exception(
-        'Gemini API erreur ${response.statusCode}: '
-        '${error['error']?['message'] ?? response.body}',
-      );
+    for (final model in modelsToTry) {
+      final url =
+          '${cfg.geminiApiUrl}/models/$model:generateContent?key=$apiKey';
+
+      final resp = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'contents': [
+            {
+              'parts': [
+                {
+                  'inline_data': {
+                    'mime_type': 'image/jpeg',
+                    'data': base64Image,
+                  }
+                },
+                {'text': prompt},
+              ]
+            }
+          ],
+          'generationConfig': {
+            'maxOutputTokens': cfg.geminiMaxTokens,
+            'temperature': cfg.geminiTemperature,
+          },
+        }),
+      ).timeout(const Duration(seconds: 30));
+
+      if (resp.statusCode == 200) {
+        response = resp;
+        break;
+      } else if (resp.statusCode == 429) {
+        // Quota exceeded — try next model
+        final err = jsonDecode(resp.body);
+        lastError = err['error']?['message'] ?? 'Quota exceeded';
+        continue;
+      } else {
+        final err = jsonDecode(resp.body);
+        throw Exception(
+          'Gemini API erreur ${resp.statusCode}: '
+          '${err['error']?['message'] ?? resp.body}',
+        );
+      }
+    }
+
+    if (response == null) {
+      throw Exception('Tous les modèles Gemini sont en quota: $lastError');
     }
 
     final data = jsonDecode(response.body) as Map<String, dynamic>;
