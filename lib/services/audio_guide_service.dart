@@ -3,27 +3,19 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'ai_service.dart';
 import 'gemini_nano_service.dart';
+import 'gemini_api_service.dart';
 import 'anthropic_service.dart';
 import 'tts_service.dart';
 import 'location_service.dart';
 import 'wikipedia_service.dart';
 
 enum GuideState { idle, locating, analyzing, synthesizing, speaking, paused, error }
-
-class StepTiming {
-  final String key;
-  final List<double> durations;
-
-  StepTiming(this.key, this.durations);
-
-  double get average => durations.isEmpty ? 0 : durations.reduce((a, b) => a + b) / durations.length;
-  bool get hasData => durations.isNotEmpty;
-}
+enum AIProvider { geminiNano, geminiApi, anthropic }
 
 class PipelineProgress {
   final GuideState state;
-  final double stepProgress; // 0.0 to 1.0 within current step
-  final int currentStep;    // 0=GPS, 1=Analyze, 2=TTS
+  final double stepProgress;
+  final int currentStep;
   final double? estimatedSecondsRemaining;
 
   const PipelineProgress({
@@ -35,9 +27,9 @@ class PipelineProgress {
 }
 
 class AudioGuideService extends ChangeNotifier {
-  AIService? _aiService;
   final TtsService _ttsService = TtsService();
   TtsService get ttsService => _ttsService;
+
   final GeminiNanoService _nanoService = GeminiNanoService();
 
   GuideState _state = GuideState.idle;
@@ -47,21 +39,29 @@ class AudioGuideService extends ChangeNotifier {
   File? _lastImageFile;
   LocationPermissionStatus _lastLocationStatus = LocationPermissionStatus.granted;
 
+  // Provider management
+  AIProvider _activeProvider = AIProvider.geminiNano;
+  bool _nanoAvailable = false;
+  String? _geminiApiKey;
+
+  AIProvider get activeProvider => _activeProvider;
+  bool get nanoAvailable => _nanoAvailable;
+  String? get geminiApiKey => _geminiApiKey;
+
   // Timing history
   List<double> _gpsDurations = [];
   List<double> _analyzeDurations = [];
-  List<double> _ttsDurations = [];
 
-  // Current step progress for animated indicator
   double _stepProgress = 0.0;
   int _currentStep = 0;
+  bool _simulating = false;
 
   GuideState get state => _state;
   AudioGuideResult? get lastResult => _lastResult;
   String? get errorMessage => _errorMessage;
   String get providerName => _providerName;
   File? get lastImageFile => _lastImageFile;
-  bool get isReady => _aiService != null;
+  bool get isReady => true;
   LocationPermissionStatus get lastLocationStatus => _lastLocationStatus;
 
   PipelineProgress get progress => PipelineProgress(
@@ -72,48 +72,42 @@ class AudioGuideService extends ChangeNotifier {
   );
 
   double? _estimateRemaining() {
-    if (_state == GuideState.locating) {
-      final gpsAvg = _gpsDurations.isNotEmpty
-          ? _gpsDurations.reduce((a, b) => a + b) / _gpsDurations.length : 1.5;
-      final analyzeAvg = _analyzeDurations.isNotEmpty
-          ? _analyzeDurations.reduce((a, b) => a + b) / _analyzeDurations.length : 10.0;
-      final ttsAvg = _ttsDurations.isNotEmpty
-          ? _ttsDurations.reduce((a, b) => a + b) / _ttsDurations.length : 5.0;
-      return gpsAvg + analyzeAvg + ttsAvg;
-    }
-    if (_state == GuideState.analyzing) {
-      final analyzeAvg = _analyzeDurations.isNotEmpty
-          ? _analyzeDurations.reduce((a, b) => a + b) / _analyzeDurations.length : 10.0;
-      final ttsAvg = _ttsDurations.isNotEmpty
-          ? _ttsDurations.reduce((a, b) => a + b) / _ttsDurations.length : 5.0;
-      return analyzeAvg * (1 - _stepProgress) + ttsAvg;
-    }
-    if (_state == GuideState.synthesizing) {
-      final ttsAvg = _ttsDurations.isNotEmpty
-          ? _ttsDurations.reduce((a, b) => a + b) / _ttsDurations.length : 5.0;
-      return ttsAvg * (1 - _stepProgress);
-    }
+    final analyzeAvg = _analyzeDurations.isNotEmpty
+        ? _analyzeDurations.reduce((a, b) => a + b) / _analyzeDurations.length
+        : 10.0;
+    final gpsAvg = _gpsDurations.isNotEmpty
+        ? _gpsDurations.reduce((a, b) => a + b) / _gpsDurations.length
+        : 1.5;
+
+    if (_state == GuideState.locating) return gpsAvg + analyzeAvg + 5.0;
+    if (_state == GuideState.analyzing) return analyzeAvg * (1 - _stepProgress) + 5.0;
+    if (_state == GuideState.synthesizing) return null;
     return null;
   }
 
   Future<void> init(String? anthropicApiKey) async {
-    await _loadTimings();
+    await _loadPreferences();
 
-    final nanoAvailable = await _nanoService.isAvailable();
-    if (nanoAvailable) {
+    _nanoAvailable = await _nanoService.isAvailable();
+    if (_nanoAvailable) {
       try {
         await _nanoService.initialize();
-        _aiService = _nanoService;
-        _providerName = 'Gemini Nano';
       } catch (e) {
         debugPrint('Gemini Nano init failed: $e');
+        _nanoAvailable = false;
       }
     }
 
-    if (_aiService == null && anthropicApiKey != null && anthropicApiKey.isNotEmpty) {
-      _aiService = AnthropicService(apiKey: anthropicApiKey);
-      _providerName = 'Claude (cloud)';
+    // Determine active provider
+    if (_activeProvider == AIProvider.geminiNano && !_nanoAvailable) {
+      if (_geminiApiKey?.isNotEmpty == true) {
+        _activeProvider = AIProvider.geminiApi;
+      } else if (anthropicApiKey?.isNotEmpty == true) {
+        _activeProvider = AIProvider.anthropic;
+      }
     }
+
+    _updateProviderName();
 
     _ttsService.onComplete = () {
       _state = GuideState.idle;
@@ -124,30 +118,81 @@ class AudioGuideService extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setApiKey(String apiKey) {
-    _aiService = AnthropicService(apiKey: apiKey);
-    _providerName = 'Claude (cloud)';
-    _ttsService.onComplete = () {
-      _state = GuideState.idle;
-      notifyListeners();
-    };
+  void _updateProviderName() {
+    switch (_activeProvider) {
+      case AIProvider.geminiNano:
+        _providerName = 'Gemini Nano';
+      case AIProvider.geminiApi:
+        _providerName = 'Gemini API';
+      case AIProvider.anthropic:
+        _providerName = 'Claude (cloud)';
+    }
+  }
+
+  AIService? get _currentService {
+    switch (_activeProvider) {
+      case AIProvider.geminiNano:
+        return _nanoAvailable ? _nanoService : null;
+      case AIProvider.geminiApi:
+        final key = _geminiApiKey;
+        if (key?.isNotEmpty == true) return GeminiApiService(apiKey: key!);
+        return null;
+      case AIProvider.anthropic:
+        return null;
+    }
+  }
+
+  Future<void> setActiveProvider(AIProvider provider) async {
+    _activeProvider = provider;
+    _updateProviderName();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('active_provider', provider.name);
     notifyListeners();
   }
 
+  Future<void> setGeminiApiKey(String key) async {
+    _geminiApiKey = key.isEmpty ? null : key;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('gemini_api_key', key);
+    // Auto-switch to Gemini API if key provided
+    if (key.isNotEmpty) {
+      await setActiveProvider(AIProvider.geminiApi);
+    } else if (_nanoAvailable) {
+      await setActiveProvider(AIProvider.geminiNano);
+    }
+    notifyListeners();
+  }
+
+  void setApiKey(String apiKey) {
+    // Legacy: Anthropic key
+    notifyListeners();
+  }
+
+  Future<void> _loadPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    _geminiApiKey = prefs.getString('gemini_api_key');
+    final providerName = prefs.getString('active_provider');
+    if (providerName != null) {
+      _activeProvider = AIProvider.values.firstWhere(
+        (p) => p.name == providerName,
+        orElse: () => AIProvider.geminiNano,
+      );
+    }
+    _gpsDurations = (prefs.getStringList('timing_gps') ?? []).map(double.parse).toList();
+    _analyzeDurations = (prefs.getStringList('timing_analyze') ?? []).map(double.parse).toList();
+  }
+
   Future<AudioGuideResult?> analyzeAndPlay(File imageFile) async {
-    final service = _aiService;
+    final service = _currentService;
     if (service == null) {
       _state = GuideState.error;
-      _errorMessage = 'Aucun service IA disponible';
+      _errorMessage = 'Aucun service IA disponible. Configurez une clé API dans les paramètres.';
       notifyListeners();
       return null;
     }
 
     try {
-      // Clear previous result immediately so UI shows blank
       _lastResult = null;
-
-      // Step 1: GPS
       _state = GuideState.locating;
       _currentStep = 0;
       _stepProgress = 0.0;
@@ -161,7 +206,7 @@ class AudioGuideService extends ChangeNotifier {
       if (_gpsDurations.length > 5) _gpsDurations.removeAt(0);
       _lastLocationStatus = locationResult.status;
 
-      // Wikipedia enrichment (parallel with moving to step 2)
+      // Wikipedia enrichment
       String? wikiContext;
       if (locationResult.info != null) {
         final wikiResults = await WikipediaService.searchNearby(
@@ -173,13 +218,11 @@ class AudioGuideService extends ChangeNotifier {
         }
       }
 
-      // Build combined location context
       final fullContext = [
         locationResult.info?.contextForPrompt,
         wikiContext,
       ].where((s) => s != null && s.isNotEmpty).join('\n\n');
 
-      // Step 2: Analyze
       _state = GuideState.analyzing;
       _currentStep = 1;
       _stepProgress = 0.0;
@@ -194,8 +237,7 @@ class AudioGuideService extends ChangeNotifier {
         imageFile,
         locationContext: fullContext.isNotEmpty ? fullContext : null,
       );
-      final analyzeDuration = DateTime.now().difference(analyzeStart).inMilliseconds / 1000.0;
-      _analyzeDurations.add(analyzeDuration);
+      _analyzeDurations.add(DateTime.now().difference(analyzeStart).inMilliseconds / 1000.0);
       if (_analyzeDurations.length > 5) _analyzeDurations.removeAt(0);
       _stopProgressSimulation();
 
@@ -207,23 +249,16 @@ class AudioGuideService extends ChangeNotifier {
         );
       }
 
-      // Step 3: TTS synthesis
       _state = GuideState.synthesizing;
       _currentStep = 2;
-      _stepProgress = 0.0;
+      _stepProgress = -1.0;
       notifyListeners();
 
-      // TTS: no progress simulation (causes flicker), use indeterminate indicator
-      _stepProgress = -1.0; // -1 signals indeterminate in UI
-      notifyListeners();
-
-      final ttsStart = DateTime.now();
       await _ttsService.speak(_lastResult!.script);
-      final ttsDuration = DateTime.now().difference(ttsStart).inMilliseconds / 1000.0;
-      _ttsDurations.add(ttsDuration);
-      if (_ttsDurations.length > 5) _ttsDurations.removeAt(0);
 
-      await _saveTimings();
+      final prefs = await SharedPreferences.getInstance();
+      prefs.setStringList('timing_gps', _gpsDurations.map((d) => d.toString()).toList());
+      prefs.setStringList('timing_analyze', _analyzeDurations.map((d) => d.toString()).toList());
 
       _state = GuideState.speaking;
       _stepProgress = 1.0;
@@ -239,16 +274,13 @@ class AudioGuideService extends ChangeNotifier {
     }
   }
 
-  // Simulate smooth progress during steps that don't report progress
-  bool _simulating = false;
   Future<void> _startProgressSimulation({required double expectedDuration}) async {
     _simulating = true;
     _stepProgress = 0.0;
     final startTime = DateTime.now();
     while (_simulating && _stepProgress < 0.95) {
-      await Future.delayed(const Duration(milliseconds: 100));
+      await Future.delayed(const Duration(milliseconds: 150));
       final elapsed = DateTime.now().difference(startTime).inMilliseconds / 1000.0;
-      // Asymptotic progress that never quite reaches 1.0
       _stepProgress = 1.0 - (1.0 / (1.0 + elapsed / expectedDuration * 2));
       notifyListeners();
     }
@@ -275,20 +307,6 @@ class AudioGuideService extends ChangeNotifier {
     await _ttsService.stop();
     _state = GuideState.idle;
     notifyListeners();
-  }
-
-  Future<void> _saveTimings() async {
-    final prefs = await SharedPreferences.getInstance();
-    prefs.setStringList('timing_gps', _gpsDurations.map((d) => d.toString()).toList());
-    prefs.setStringList('timing_analyze', _analyzeDurations.map((d) => d.toString()).toList());
-    prefs.setStringList('timing_tts', _ttsDurations.map((d) => d.toString()).toList());
-  }
-
-  Future<void> _loadTimings() async {
-    final prefs = await SharedPreferences.getInstance();
-    _gpsDurations = (prefs.getStringList('timing_gps') ?? []).map(double.parse).toList();
-    _analyzeDurations = (prefs.getStringList('timing_analyze') ?? []).map(double.parse).toList();
-    _ttsDurations = (prefs.getStringList('timing_tts') ?? []).map(double.parse).toList();
   }
 
   @override
