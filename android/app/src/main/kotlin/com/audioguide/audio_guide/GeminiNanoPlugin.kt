@@ -28,7 +28,7 @@ class GeminiNanoPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     companion object {
         const val CHANNEL = "com.audioguide/gemini_nano"
 
-        const val AUDIO_GUIDE_PROMPT = """Tu es un guide audio culturel expert et passionné. En te basant sur cette image, génère un commentaire audio en français de 3 à 4 phrases, avec un ton chaleureux et vivant, comme si tu t'adressais à un touriste curieux devant toi. Commence directement par ce que tu vois, sans introduction. Sois précis, évocateur et donne un détail historique ou culturel si possible."""
+        const val AUDIO_GUIDE_PROMPT = """Tu es un guide audio culturel expert et passionné. En te basant sur cette image, génère un commentaire audio en français, avec un ton chaleureux et vivant, comme si tu t'adressais à un touriste curieux devant toi. Commence directement par ce que tu vois, sans introduction ni formule de politesse. Développe ton commentaire en plusieurs paragraphes : décris d'abord ce que tu vois, puis donne le contexte historique ou culturel, raconte une anecdote ou un fait marquant si possible, et conclus par ce qui rend ce lieu ou cet objet unique. Sois précis, évocateur et passionné. Vise environ 150 à 200 mots."""
     }
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
@@ -124,7 +124,7 @@ class GeminiNanoPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
                             ImagePart(bitmap),
                             TextPart(AUDIO_GUIDE_PROMPT)
                         ) {
-                            maxOutputTokens = 256
+                            maxOutputTokens = 1024
                         }
 
                         val response = model.generateContent(request)
@@ -144,3 +144,4 @@ class GeminiNanoPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
         }
     }
 }
+
