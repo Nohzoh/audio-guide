@@ -59,7 +59,13 @@ jobs:
           if grep -q 'ndkVersion' $FILE; then
             sed -i 's/ndkVersion = "[^"]*"/ndkVersion = "27.0.12077973"/' $FILE
           else
-            sed -i '/compileSdk = 36/a\        ndkVersion = "27.0.12077973"' $FILE
+            # Add ndkVersion
+          if grep -q ndkVersion $FILE; then
+            sed -i 's|ndkVersion = ".*"|ndkVersion = "27.0.12077973"|' $FILE
+          else
+            echo '        ndkVersion = "27.0.12077973"' >> $FILE
+            sed -i '/compileSdk = 36/{n;s/.*/        ndkVersion = "27.0.12077973"/}' $FILE
+          fi
           fi
 
           # Add our dependencies at end of file
