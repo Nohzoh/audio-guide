@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class RemoteConfig {
   // Gemini API
   final String geminiModel;
+  final List<String> geminiModelFallbacks;
   final String geminiApiUrl;
   final int geminiMaxTokens;
   final double geminiTemperature;
@@ -35,7 +36,8 @@ class RemoteConfig {
   final int progressSimulationIntervalMs;
 
   const RemoteConfig({
-    this.geminiModel = 'gemini-2.0-flash',
+    this.geminiModel = 'gemini-2.5-flash',
+    this.geminiModelFallbacks = const ['gemini-3.0-flash', 'gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-1.5-flash'],
     this.geminiApiUrl = 'https://generativelanguage.googleapis.com/v1',
     this.geminiMaxTokens = 1024,
     this.geminiTemperature = 0.7,
@@ -80,6 +82,7 @@ class RemoteConfig {
 
   Map<String, dynamic> toJson() => {
     'gemini_model': geminiModel,
+    'gemini_model_fallbacks': geminiModelFallbacks,
     'gemini_api_url': geminiApiUrl,
     'gemini_max_tokens': geminiMaxTokens,
     'gemini_temperature': geminiTemperature,
