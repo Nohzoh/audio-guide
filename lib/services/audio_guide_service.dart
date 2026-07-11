@@ -6,6 +6,7 @@ import 'gemini_nano_service.dart';
 import 'anthropic_service.dart';
 import 'tts_service.dart';
 import 'location_service.dart';
+import 'wikipedia_service.dart';
 
 enum GuideState { idle, locating, analyzing, synthesizing, speaking, paused, error }
 
@@ -142,6 +143,9 @@ class AudioGuideService extends ChangeNotifier {
     }
 
     try {
+      // Clear previous result immediately so UI shows blank
+      _lastResult = null;
+
       // Step 1: GPS
       _state = GuideState.locating;
       _currentStep = 0;
@@ -156,13 +160,32 @@ class AudioGuideService extends ChangeNotifier {
       if (_gpsDurations.length > 5) _gpsDurations.removeAt(0);
       _lastLocationStatus = locationResult.status;
 
+      // Wikipedia enrichment (parallel with moving to step 2)
+      String? wikiContext;
+      if (locationResult.info != null) {
+        final wikiResults = await WikipediaService.searchNearby(
+          lat: locationResult.info!.latitude,
+          lon: locationResult.info!.longitude,
+        );
+        if (wikiResults.isNotEmpty) {
+          wikiContext = WikipediaService.buildContext(wikiResults);
+        }
+      }
+
+      // Build combined location context
+      final fullContext = [
+        locationResult.info?.contextForPrompt,
+        wikiContext,
+      ].where((s) => s != null).join('
+
+');
+
       // Step 2: Analyze
       _state = GuideState.analyzing;
       _currentStep = 1;
       _stepProgress = 0.0;
       notifyListeners();
 
-      // Simulate progress during analysis (we don't have real progress events)
       _startProgressSimulation(expectedDuration: _analyzeDurations.isNotEmpty
           ? _analyzeDurations.reduce((a, b) => a + b) / _analyzeDurations.length
           : 10.0);
@@ -170,7 +193,7 @@ class AudioGuideService extends ChangeNotifier {
       final analyzeStart = DateTime.now();
       _lastResult = await service.analyzeImage(
         imageFile,
-        locationContext: locationResult.info?.contextForPrompt,
+        locationContext: fullContext.isNotEmpty ? fullContext : null,
       );
       final analyzeDuration = DateTime.now().difference(analyzeStart).inMilliseconds / 1000.0;
       _analyzeDurations.add(analyzeDuration);
