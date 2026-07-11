@@ -151,10 +151,22 @@ jobs:
           PROPS
           echo "✅ Keystore configured"
 
-      - name: Show generated build.gradle
+      - name: Find and show build files
         run: |
-          echo "=== android/app/build.gradle ==="
-          cat android/app/build.gradle
+          echo "=== Directory structure ==="
+          find android -name "*.gradle" -o -name "*.gradle.kts" | head -20
+          echo ""
+          echo "=== app/build.gradle ==="
+          cat android/app/build.gradle 2>/dev/null || echo "NOT FOUND"
+          echo ""
+          echo "=== app/build.gradle.kts ==="
+          cat android/app/build.gradle.kts 2>/dev/null || echo "NOT FOUND"
+          echo ""
+          echo "=== settings.gradle ==="
+          cat android/settings.gradle 2>/dev/null || echo "NOT FOUND"
+          echo ""
+          echo "=== settings.gradle.kts ==="
+          cat android/settings.gradle.kts 2>/dev/null || echo "NOT FOUND" 
 
       - name: Get dependencies
         run: flutter pub get
