@@ -28,7 +28,7 @@ class GeminiNanoPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     companion object {
         const val CHANNEL = "com.audioguide/gemini_nano"
 
-        const val PROMPT_BASE = """Tu es un guide audio culturel expert et passionné. En te basant sur cette image%s, génère un commentaire audio en français, avec un ton chaleureux et vivant, comme si tu t'adressais à un touriste curieux devant toi. Commence directement par ce que tu vois, sans introduction ni formule de politesse. Développe ton commentaire en plusieurs paragraphes : décris d'abord ce que tu vois, puis donne le contexte historique ou culturel, raconte une anecdote ou un fait marquant si possible, et conclus par ce qui rend ce lieu ou cet objet unique. Sois précis, évocateur et passionné. Vise environ 150 à 200 mots."""
+        const val PROMPT_BASE = """Tu es un guide audio culturel expert et passionné. En te basant sur cette image%s, génère un commentaire audio en français, avec un ton chaleureux et vivant, comme si tu t'adressais à un touriste curieux devant toi. Commence directement par ce que tu vois, sans introduction ni formule de politesse. Règle absolue : ne mentionne jamais de dates, chiffres ou faits historiques précis dont tu n'es pas certain à 100%% — préfère des formulations comme "au fil des siècles", "à l'époque" plutôt que des années précises. Si des informations factuelles sont fournies dans le contexte, utilise-les prioritairement. Décris ce que tu vois, donne le contexte culturel, et conclus par ce qui rend ce lieu unique. Sois évocateur et passionné. Vise environ 150 à 200 mots."""
 
         fun buildPrompt(locationContext: String?): String {
             val locationPart = if (!locationContext.isNullOrBlank()) " (prise à : $locationContext)" else ""
