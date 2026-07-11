@@ -29,7 +29,7 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Install Android SDK 36 + NDK 27
-        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;27.0.12077973"
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;27.0.12077973" "ndk;26.3.11579264"
 
       - name: Setup Flutter 3.32.2
         uses: subosito/flutter-action@v2
