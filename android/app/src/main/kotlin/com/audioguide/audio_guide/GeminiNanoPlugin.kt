@@ -28,11 +28,28 @@ class GeminiNanoPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     companion object {
         const val CHANNEL = "com.audioguide/gemini_nano"
 
-        const val PROMPT_BASE = """Tu es un guide audio culturel expert et passionné. En te basant sur cette image%s, génère un commentaire audio en français, avec un ton chaleureux et vivant, comme si tu t'adressais à un touriste curieux devant toi. Commence directement par ce que tu vois, sans introduction ni formule de politesse. Règle absolue : ne mentionne jamais de dates, chiffres ou faits historiques précis dont tu n'es pas certain à 100%% — préfère des formulations comme "au fil des siècles", "à l'époque" plutôt que des années précises. Si des informations factuelles sont fournies dans le contexte, utilise-les prioritairement. Décris ce que tu vois, donne le contexte culturel, et conclus par ce qui rend ce lieu unique. Sois évocateur et passionné. Vise environ 150 à 200 mots."""
+        // Segment 1: Visual description
+        const val PROMPT_SEG1 = """Tu es un guide audio culturel. En te basant sur cette image%s, décris en français ce que tu vois avec un ton chaleureux et vivant. Commence directement, sans introduction. Ne mentionne pas de dates ou chiffres précis dont tu n'es pas certain. 2-3 phrases maximum."""
 
-        fun buildPrompt(locationContext: String?): String {
-            val locationPart = if (!locationContext.isNullOrBlank()) " (prise à : $locationContext)" else ""
-            return PROMPT_BASE.format(locationPart)
+        // Segment 2: Historical/cultural context (continues from seg1)
+        const val PROMPT_SEG2 = """Tu es un guide audio culturel. Suite de ton commentaire sur cette image. Texte déjà dit : "%s". Continue maintenant avec le contexte historique et culturel de ce lieu, en 2-3 phrases qui s'enchaînent naturellement avec ce qui précède. Pas de répétition."""
+
+        // Segment 3: Conclusion
+        const val PROMPT_SEG3 = """Tu es un guide audio culturel. Suite de ton commentaire. Texte déjà dit : "%s". Conclus en 2 phrases sur ce qui rend ce lieu unique et l'émotion qu'il inspire. Ton chaleureux, conclusif."""
+
+        fun buildSeg1Prompt(locationContext: String?): String {
+            val loc = if (!locationContext.isNullOrBlank()) " (prise à : $locationContext)" else ""
+            return PROMPT_SEG1.format(loc)
+        }
+
+        fun buildSeg2Prompt(previousText: String): String {
+            val excerpt = if (previousText.length > 200) previousText.takeLast(200) else previousText
+            return PROMPT_SEG2.format(excerpt)
+        }
+
+        fun buildSeg3Prompt(previousText: String): String {
+            val excerpt = if (previousText.length > 200) previousText.takeLast(200) else previousText
+            return PROMPT_SEG3.format(excerpt)
         }
     }
 
@@ -71,37 +88,21 @@ class GeminiNanoPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
                         generativeModel?.close()
                         val model = Generation.getClient()
 
-                        model.download().collect { status ->
-                            when (status) {
-                                is DownloadStatus.DownloadCompleted -> {
-                                    generativeModel = model
-                                    withContext(Dispatchers.Main) { result.success(true) }
-                                    return@collect
-                                }
-                                is DownloadStatus.DownloadFailed -> {
-                                    // Model likely already downloaded
-                                    generativeModel = model
-                                    withContext(Dispatchers.Main) { result.success(true) }
-                                    return@collect
-                                }
-                                else -> { /* continue collecting */ }
+                        model.downloadFeature(object : DownloadCallback {
+                            override fun onDownloadStarted(bytesToDownload: Long) {}
+                            override fun onDownloadProgress(bytesDownloaded: Long) {}
+                            override fun onDownloadCompleted() {
+                                generativeModel = model
+                                scope.launch(Dispatchers.Main) { result.success(true) }
                             }
-                        }
-
-                        // If download flow completes without explicit signal
-                        if (generativeModel == null) {
-                            generativeModel = model
-                            withContext(Dispatchers.Main) { result.success(true) }
-                        }
+                            override fun onDownloadFailed(e: GenAiException) {
+                                generativeModel = model
+                                scope.launch(Dispatchers.Main) { result.success(true) }
+                            }
+                        })
                     } catch (e: Exception) {
-                        // Model may already be ready
-                        try {
-                            generativeModel = Generation.getClient()
-                            withContext(Dispatchers.Main) { result.success(true) }
-                        } catch (e2: Exception) {
-                            withContext(Dispatchers.Main) {
-                                result.error("INIT_ERROR", e2.message, null)
-                            }
+                        withContext(Dispatchers.Main) {
+                            result.error("INIT_ERROR", e.message, null)
                         }
                     }
                 }
@@ -109,6 +110,8 @@ class GeminiNanoPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
 
             "describeImage" -> {
                 val imagePath = call.argument<String>("imagePath")
+                val locationContext = call.argument<String>("locationContext")
+
                 if (imagePath == null) {
                     result.error("INVALID_ARGS", "imagePath required", null)
                     return
@@ -125,20 +128,38 @@ class GeminiNanoPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
                         val bitmap = BitmapFactory.decodeFile(imagePath, opts)
                             ?: throw Exception("Cannot decode image")
 
-                        val locationContext = call.argument<String>("locationContext")
-                        val prompt = buildPrompt(locationContext)
-                        val request = generateContentRequest(
-                            ImagePart(bitmap),
-                            TextPart(prompt)
-                        ) {
-                            maxOutputTokens = 256
-                        }
+                        // === CASCADED CALLS ===
 
-                        val response = model.generateContent(request)
+                        // Segment 1: Visual description (with image)
+                        val req1 = generateContentRequest(
+                            ImagePart(bitmap),
+                            TextPart(buildSeg1Prompt(locationContext))
+                        ) { maxOutputTokens = 256 }
+                        val seg1 = model.generateContent(req1)
+                            .candidates.firstOrNull()?.text?.trim() ?: ""
+
+                        // Segment 2: Historical context (text only)
+                        val req2 = generateContentRequest(
+                            TextPart(buildSeg2Prompt(seg1))
+                        ) { maxOutputTokens = 256 }
+                        val seg2 = model.generateContent(req2)
+                            .candidates.firstOrNull()?.text?.trim() ?: ""
+
+                        // Segment 3: Conclusion (text only)
+                        val req3 = generateContentRequest(
+                            TextPart(buildSeg3Prompt("$seg1 $seg2"))
+                        ) { maxOutputTokens = 256 }
+                        val seg3 = model.generateContent(req3)
+                            .candidates.firstOrNull()?.text?.trim() ?: ""
+
                         bitmap.recycle()
 
-                        val text = response.candidates.firstOrNull()?.text ?: ""
-                        withContext(Dispatchers.Main) { result.success(text) }
+                        // Assemble full script
+                        val fullText = listOf(seg1, seg2, seg3)
+                            .filter { it.isNotBlank() }
+                            .joinToString(" ")
+
+                        withContext(Dispatchers.Main) { result.success(fullText) }
                     } catch (e: Exception) {
                         withContext(Dispatchers.Main) {
                             result.error("INFERENCE_ERROR", e.message, null)
@@ -151,5 +172,3 @@ class GeminiNanoPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
         }
     }
 }
-
-
