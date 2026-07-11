@@ -28,7 +28,9 @@ class TtsService {
 
     // Verify files exist
     if (!File(modelPath).existsSync()) {
-      throw Exception('TTS model not found at $modelPath');
+      throw Exception('TTS model not found at $modelPath. '
+        'ttsDir: $ttsDir, '
+        'exists: ${Directory(ttsDir).existsSync()}');
     }
 
     final vits = sherpa.OfflineTtsVitsModelConfig(
@@ -40,7 +42,7 @@ class TtsService {
     final modelConfig = sherpa.OfflineTtsModelConfig(
       vits: vits,
       numThreads: 2,
-      debug: false,
+      debug: true,
       provider: 'cpu',
     );
 
@@ -49,8 +51,18 @@ class TtsService {
       maxNumSenetences: 1,
     );
 
-    _tts = sherpa.OfflineTts(config);
-    _initialized = true;
+    try {
+      _tts = sherpa.OfflineTts(config);
+      _initialized = true;
+    } catch (e) {
+      throw Exception('Failed to create TTS: $e. '
+          'model=$modelPath, '
+          'tokens=$tokensPath, '
+          'dataDir=$dataDirPath, '
+          'modelExists=${File(modelPath).existsSync()}, '
+          'tokensExists=${File(tokensPath).existsSync()}, '
+          'dataDirExists=${Directory(dataDirPath).existsSync()}');
+    }
   }
 
   Future<void> _extractAssets(String targetDir) async {
