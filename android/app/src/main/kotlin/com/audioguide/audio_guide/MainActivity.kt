@@ -8,5 +8,6 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         flutterEngine.plugins.add(MediaPipePlugin())
         flutterEngine.plugins.add(GeminiNanoPlugin())
+        flutterEngine.plugins.add(LocationPlugin())
     }
 }
