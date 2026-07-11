@@ -31,7 +31,7 @@ jobs:
       - name: Install Android platform 35
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Setup Flutter 3.24.5
+      - name: Setup Flutter 3.32.2
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.32.2'
@@ -40,22 +40,58 @@ jobs:
       - name: Bootstrap Flutter project
         run: flutter create --project-name audio_guide --org com.audioguide --platforms android .
 
-      - name: Patch Kotlin to 2.2.0
+      - name: Patch Android config
         run: |
           python3 - <<'PYEOF'
-          import re, os
+          import re, os, glob
+
+          # --- Patch app/build.gradle ---
+          # Flutter 3.32 generates declarative plugins block format
+          build_gradle = 'android/app/build.gradle'
+          if os.path.exists(build_gradle):
+              with open(build_gradle, 'r') as f:
+                  content = f.read()
+
+              # Set minSdk, targetSdk, compileSdk
+              content = re.sub(r'minSdk\s*=?\s*\d+', 'minSdk = 26', content)
+              content = re.sub(r'targetSdk\s*=?\s*\d+', 'targetSdk = 35', content)
+              content = re.sub(r'compileSdk\s*=?\s*\d+', 'compileSdk = 35', content)
+              content = re.sub(r'minSdkVersion\s+\d+', 'minSdkVersion 26', content)
+              content = re.sub(r'targetSdkVersion\s+\d+', 'targetSdkVersion 35', content)
+              content = re.sub(r'compileSdkVersion\s+\d+', 'compileSdkVersion 35', content)
+
+              # Add our dependencies before the last closing brace
+              extra_deps = """
+          dependencies {
+              implementation("com.google.mediapipe:tasks-genai:0.10.14")
+              implementation("com.google.mlkit:genai-prompt:1.0.0-beta1")
+              implementation("com.google.guava:guava:32.1.3-android")
+              implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+              implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0")
+              implementation("com.google.android.gms:play-services-location:21.3.0")
+          }
+          """
+              if 'tasks-genai' not in content:
+                  content += extra_deps
+
+              with open(build_gradle, 'w') as f:
+                  f.write(content)
+              print("✅ app/build.gradle patched")
+              print(content[:800])
+
+          # --- Patch settings.gradle for Kotlin version ---
           for path in ['android/settings.gradle', 'android/build.gradle']:
               if not os.path.exists(path): continue
               with open(path, 'r') as f:
-                  content = f.read()
-              content = re.sub(r'(id "org.jetbrains.kotlin.android" version ")[^"]*(")', r'\g<1>2.2.0\2', content)
-              content = re.sub(r'(ext\.kotlin_version\s*=\s*")[^"]*(")', r'\g<1>2.2.0\2', content)
+                  c = f.read()
+              c = re.sub(r'(id "org.jetbrains.kotlin.android" version ")[^"]*(")', r'\g<1>2.2.0\2', c)
+              c = re.sub(r'(ext\.kotlin_version\s*=\s*")[^"]*(")', r'\g<1>2.2.0\2', c)
               with open(path, 'w') as f:
-                  f.write(content)
-              print(f"✅ Patched {path}")
+                  f.write(c)
+              print(f"✅ Patched Kotlin 2.2.0 in {path}")
           PYEOF
 
-      - name: Patch AndroidManifest with permissions
+      - name: Patch AndroidManifest
         run: |
           python3 - <<'PYEOF'
           manifest_path = 'android/app/src/main/AndroidManifest.xml'
@@ -67,9 +103,9 @@ jobs:
               <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
               <uses-permission android:name="android.permission.INTERNET"/>
               <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
-              <uses-feature android:name="android.hardware.camera" android:required="false"/>
               <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
               <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+              <uses-feature android:name="android.hardware.camera" android:required="false"/>
           """
           provider = """
               <provider
@@ -82,17 +118,16 @@ jobs:
                       android:resource="@xml/file_paths"/>
               </provider>
           """
-          content = content.replace('<application', permissions + '\n    <application', 1)
-          content = content.replace('</application>', provider + '\n</application>')
+          if 'ACCESS_FINE_LOCATION' not in content:
+              content = content.replace('<application', permissions + '\n    <application', 1)
+          if 'FileProvider' not in content:
+              content = content.replace('</application>', provider + '\n</application>')
+          content = re.sub(r'android:label="[^"]*"', 'android:label="AudioLens"', content)
           with open(manifest_path, 'w') as f:
               f.write(content)
+          import re
           print("✅ Manifest patched")
           PYEOF
-
-      - name: Set app name to AudioLens
-        run: |
-          sed -i 's/android:label="[^"]*"/android:label="AudioLens"/' android/app/src/main/AndroidManifest.xml
-          echo "✅ App name set to AudioLens"
 
       - name: Create FileProvider paths
         run: |
@@ -108,27 +143,29 @@ jobs:
       - name: Setup keystore
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/audiolens.jks
-          echo "storeFile=audiolens.jks" > android/key.properties
-          echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}" >> android/key.properties
-          echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> android/key.properties
-          echo "keyPassword=${{ secrets.KEYSTORE_PASSWORD }}" >> android/key.properties
+          cat > android/key.properties << 'PROPS'
+          storeFile=audiolens.jks
+          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          keyPassword=${{ secrets.KEYSTORE_PASSWORD }}
+          PROPS
           echo "✅ Keystore configured"
 
-      - name: Patch build.gradle for signing
+      - name: Patch signing into build.gradle
         run: |
           python3 - <<'PYEOF'
           with open('android/app/build.gradle', 'r') as f:
               content = f.read()
 
-          signing_config = """
+          if 'keystoreProperties' not in content:
+              signing = """
           def keystoreProperties = new Properties()
           def keystorePropertiesFile = rootProject.file('key.properties')
           if (keystorePropertiesFile.exists()) {
               keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
           }
           """
-
-          signing_block = """
+              signing_config = """
               signingConfigs {
                   release {
                       keyAlias keystoreProperties['keyAlias']
@@ -138,26 +175,16 @@ jobs:
                   }
               }
           """
+              # Insert before android {
+              content = content.replace('android {', signing + '\nandroid {\n' + signing_config, 1)
+              content = content.replace('signingConfig = signingConfigs.debug', 'signingConfig = signingConfigs.release')
+              content = content.replace('signingConfig signingConfigs.debug', 'signingConfig signingConfigs.release')
 
-          # Add keystore properties loader before android block
-          if 'keystoreProperties' not in content:
-              content = content.replace(
-                  "apply plugin: 'com.android.application'",
-                  "apply plugin: 'com.android.application'\n" + signing_config
-              )
-              # Add signingConfigs block and use it in release
-              content = content.replace(
-                  'android {',
-                  'android {\n' + signing_block
-              )
-              content = content.replace(
-                  'signingConfig signingConfigs.debug',
-                  'signingConfig signingConfigs.release'
-              )
-
-          with open('android/app/build.gradle', 'w') as f:
-              f.write(content)
-          print("✅ build.gradle patched for signing")
+              with open('android/app/build.gradle', 'w') as f:
+                  f.write(content)
+              print("✅ Signing configured")
+          else:
+              print("ℹ️ Signing already configured")
           PYEOF
 
       - name: Get dependencies
@@ -173,7 +200,7 @@ jobs:
         run: |
           echo "## Build errors" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          tail -100 build_output.txt >> $GITHUB_STEP_SUMMARY
+          tail -150 build_output.txt >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Upload APK
