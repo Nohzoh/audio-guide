@@ -136,6 +136,13 @@ jobs:
           python3 scripts/patch_signing.py "$FILE"
           echo "Done"
 
+      - name: Debug - show gradle after signing
+        run: |
+          echo "=== build.gradle.kts ==="
+          cat android/app/build.gradle.kts
+          echo "=== key.properties ==="
+          cat android/key.properties 2>/dev/null || echo "NOT FOUND"
+
       - name: Get dependencies
         run: flutter pub get
 
