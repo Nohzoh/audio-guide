@@ -176,9 +176,7 @@ class AudioGuideService extends ChangeNotifier {
       final fullContext = [
         locationResult.info?.contextForPrompt,
         wikiContext,
-      ].where((s) => s != null).join('
-
-');
+      ].where((s) => s != null && s.isNotEmpty).join('\n\n');
 
       // Step 2: Analyze
       _state = GuideState.analyzing;
