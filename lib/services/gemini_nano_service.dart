@@ -28,36 +28,31 @@ class GeminiNanoService implements AIService {
   }
 
   @override
-  Future<AudioGuideResult> analyzeImage(File imageFile) async {
+  Future<AudioGuideResult> analyzeImage(File imageFile,
+      {String? locationContext}) async {
     if (!_initialized) await initialize();
 
     try {
+      final args = {'imagePath': imageFile.path};
+      if (locationContext != null) args['locationContext'] = locationContext;
+
       final description = await _channel.invokeMethod<String>(
         'describeImage',
-        {'imagePath': imageFile.path},
+        args,
       );
 
       final text = description ?? '';
-
-      // Build a guide script from the raw description
-      final script = _buildGuideScript(text);
       final title = _extractTitle(text);
 
-      return AudioGuideResult(title: title, script: script);
+      return AudioGuideResult(title: title, script: text);
     } on PlatformException catch (e) {
       throw Exception('Gemini Nano: ${e.message}');
     }
   }
 
-  String _buildGuideScript(String description) {
-    if (description.isEmpty) return 'Je ne parviens pas à analyser cette image.';
-    // Gemini Nano returns a raw description — wrap it in guide style
-    return description;
-  }
-
   String _extractTitle(String description) {
-    final words = description.split(' ').take(5).join(' ');
-    return words.length > 40 ? '${words.substring(0, 40)}...' : words;
+    final first = description.split('.').first.trim();
+    return first.length > 50 ? '${first.substring(0, 50)}...' : first;
   }
 
   @override
