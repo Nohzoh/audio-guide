@@ -36,13 +36,14 @@ class GeminiApiService implements AIService {
         ? '\n\nContexte et informations factuelles disponibles :\n$locationContext'
         : '';
 
-    final prompt = 'Tu es un guide audio culturel. '
-        'Decris cette image$contextPart en francais, comme si tu parlais a un visiteur. '
-        'Identifie ce que tu vois et donne son contexte historique et culturel. '
-        'Si tu reconnais l\'oeuvre ou le lieu, nomme-le avec son auteur et son histoire. '
-        'Commence directement par la description. '
-        'Ecris entre 300 et 400 mots. '
-        'N\'utilise ni asterisques ni tirets ni aucune mise en forme.';
+    final prompt = 'Tu es un guide audio de musee, passionne et erudit. '
+        'Redige le script d\'un audio-guide pour cette oeuvre ou ce lieu$contextPart. '
+        'Style : narratif et immersif, tu t\'adresses directement au visiteur avec "vous". '
+        'Tu construis une dramaturgie : accroche saisissante, details techniques fascinants, '
+        'contexte historique vivant, anecdote marquante, conclusion emotionnelle. '
+        'Si tu reconnais precisement l\'oeuvre ou le lieu, nomme-le et utilise des faits reels. '
+        'Si des informations factuelles sont disponibles dans le contexte, utilise-les. '
+        'Ecris entre 300 et 400 mots, en francais, sans aucune mise en forme ni asterisque.';
 
     // Try primary model then fallbacks on 429
     final modelsToTry = [
