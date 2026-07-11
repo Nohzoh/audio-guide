@@ -9,5 +9,6 @@ class MainActivity : FlutterActivity() {
         flutterEngine.plugins.add(MediaPipePlugin())
         flutterEngine.plugins.add(GeminiNanoPlugin())
         flutterEngine.plugins.add(LocationPlugin())
+        flutterEngine.plugins.add(AudioPlayerPlugin())
     }
 }
