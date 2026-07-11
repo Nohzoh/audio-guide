@@ -1,6 +1,6 @@
 {
-  "gemini_model": "gemini-2.0-flash",
-  "gemini_api_url": "https://generativelanguage.googleapis.com/v1",
+  "gemini_model": "gemini-1.5-flash",
+  "gemini_api_url": "https://generativelanguage.googleapis.com/v1beta",
   "gemini_max_tokens": 1024,
   "gemini_temperature": 0.7,
   "gemini_nano_max_tokens": 256,
