@@ -55,7 +55,12 @@ jobs:
           sed -i 's|^\s*targetSdkVersion\s.*|        targetSdkVersion 36|' $FILE
 
           # Add ndkVersion after compileSdk line
-          grep -q 'ndkVersion' $FILE || sed -i '/compileSdk = 36/a\        ndkVersion = "27.0.12077973"' $FILE
+          # Set ndkVersion - replace entire line or add after compileSdk
+          if grep -q 'ndkVersion' $FILE; then
+            sed -i 's/ndkVersion = "[^"]*"/ndkVersion = "27.0.12077973"/' $FILE
+          else
+            sed -i '/compileSdk = 36/a\        ndkVersion = "27.0.12077973"' $FILE
+          fi
 
           # Add our dependencies at end of file
           if ! grep -q 'tasks-genai' $FILE; then
