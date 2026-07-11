@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa;
+import 'remote_config_service.dart';
 
 class TtsService {
   sherpa.OfflineTts? _tts;
@@ -53,7 +54,7 @@ class TtsService {
 
     final modelConfig = sherpa.OfflineTtsModelConfig(
       vits: vits,
-      numThreads: 2,
+      numThreads: RemoteConfigService.current.ttsNumThreads,
       debug: false,
       provider: 'cpu',
     );
@@ -182,7 +183,10 @@ class TtsService {
       sherpa.OfflineTts tts, String text, String wavPath) async {
     return await Isolate.run(() {
       sherpa.initBindings();
-      final genConfig = sherpa.OfflineTtsGenerationConfig(sid: 0, speed: 0.9);
+      final genConfig = sherpa.OfflineTtsGenerationConfig(
+        sid: RemoteConfigService.current.ttsSid,
+        speed: RemoteConfigService.current.ttsSpeed
+    );
       final audio = tts.generateWithConfig(text: text, config: genConfig);
       sherpa.writeWave(
         filename: wavPath,
