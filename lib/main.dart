@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'services/remote_config_service.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -10,6 +11,7 @@ import 'screens/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await RemoteConfigService.load();
   await initializeDateFormatting('fr_FR', null);
 
   final settings = SettingsService();
