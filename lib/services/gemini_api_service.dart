@@ -9,7 +9,19 @@ class GeminiApiService implements AIService {
   GeminiApiService({required this.apiKey});
 
   @override
+  String get displayName => 'Gemini API';
+
+  @override
   String get providerName => 'Gemini API';
+
+  @override
+  Future<bool> isAvailable() async => apiKey.isNotEmpty;
+
+  @override
+  Future<void> initialize() async {}
+
+  @override
+  void dispose() {}
 
   @override
   Future<AudioGuideResult> analyzeImage(
@@ -23,16 +35,16 @@ class GeminiApiService implements AIService {
         ? '\n\nContexte et informations factuelles disponibles :\n$locationContext'
         : '';
 
-    final prompt = '''Tu es un guide audio culturel expert et passionné. '
-En analysant cette image$contextPart, génère un commentaire audio en français, '
-avec un ton chaleureux et vivant, comme si tu t\'adressais à un touriste curieux. '
-Identifie précisément ce que tu vois (œuvre d\'art, monument, lieu). '
-Si tu reconnais l\'œuvre ou le lieu, donne son nom exact, son auteur/architecte, '
-et son contexte historique et culturel en utilisant des faits réels. '
-Si des informations factuelles sont fournies dans le contexte, utilise-les en priorité. '
-Structure ton commentaire : description visuelle, identification, contexte historique, '
-anecdote ou fait marquant, conclusion émotionnelle. '
-Vise 300 à 400 mots, ton chaleureux et passionné.''';
+    final prompt = 'Tu es un guide audio culturel expert et passionne. '
+        'En analysant cette image$contextPart, genere un commentaire audio en francais, '
+        'avec un ton chaleureux et vivant, comme si tu t\'adressais a un touriste curieux. '
+        'Identifie precisement ce que tu vois (oeuvre d\'art, monument, lieu). '
+        'Si tu reconnais l\'oeuvre ou le lieu, donne son nom exact, son auteur/architecte, '
+        'et son contexte historique et culturel en utilisant des faits reels. '
+        'Si des informations factuelles sont fournies dans le contexte, utilise-les en priorite. '
+        'Structure ton commentaire : description visuelle, identification, contexte historique, '
+        'anecdote ou fait marquant, conclusion emotionnelle. '
+        'Vise 300 a 400 mots, ton chaleureux et passionne.';
 
     final response = await http.post(
       Uri.parse(
@@ -64,23 +76,21 @@ Vise 300 à 400 mots, ton chaleureux et passionné.''';
     if (response.statusCode != 200) {
       final error = jsonDecode(response.body);
       throw Exception(
-        'Gemini API error ${response.statusCode}: '
+        'Gemini API erreur ${response.statusCode}: '
         '${error['error']?['message'] ?? response.body}',
       );
     }
 
     final data = jsonDecode(response.body) as Map<String, dynamic>;
-    final text = data['candidates']?[0]?['content']?['parts']?[0]?['text']
-        as String?;
+    final text = data['candidates']?[0]?['content']?['parts']?[0]?['text'] as String?;
 
     if (text == null || text.isEmpty) {
-      throw Exception('Gemini API returned empty response');
+      throw Exception('Gemini API réponse vide');
     }
 
-    // Extract title (first sentence)
     final firstSentence = text.split(RegExp(r'[.!?]')).first.trim();
     final title = firstSentence.length > 60
-        ? '${firstSentence.substring(0, 60)}...'
+        ? '\${firstSentence.substring(0, 60)}...'
         : firstSentence;
 
     return AudioGuideResult(title: title, script: text);
