@@ -36,17 +36,13 @@ class GeminiApiService implements AIService {
         ? '\n\nContexte et informations factuelles disponibles :\n$locationContext'
         : '';
 
-    final prompt = 'Tu es un guide audio culturel expert et passionne. '
-        'En analysant cette image$contextPart, genere un commentaire audio en francais. '
-        'REGLES ABSOLUES : '
-        '1. Texte brut uniquement, ZERO markdown, ZERO asterisque, ZERO mise en forme. '
-        '2. Commence directement par la description, sans formule de bienvenue ni introduction. '
-        '3. Identifie precisement ce que tu vois. Si tu reconnais l\u0027oeuvre ou le lieu, '
-        'nomme-le explicitement avec son auteur et son contexte historique reel. '
-        '4. Si des informations factuelles sont fournies dans le contexte, utilise-les en priorite. '
-        '5. Structure : description visuelle (2-3 phrases), identification et histoire (3-4 phrases), '
-        'anecdote marquante (2-3 phrases), conclusion emotionnelle (2 phrases). '
-        '6. Vise 350 a 450 mots. Ton chaleureux, vivant, passionne.';
+    final prompt = 'Tu es un guide audio culturel. '
+        'Decris cette image$contextPart en francais, comme si tu parlais a un visiteur. '
+        'Identifie ce que tu vois et donne son contexte historique et culturel. '
+        'Si tu reconnais l\'oeuvre ou le lieu, nomme-le avec son auteur et son histoire. '
+        'Commence directement par la description. '
+        'Ecris entre 300 et 400 mots. '
+        'N\'utilise ni asterisques ni tirets ni aucune mise en forme.';
 
     // Try primary model then fallbacks on 429
     final modelsToTry = [
