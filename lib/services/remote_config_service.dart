@@ -35,7 +35,7 @@ class RemoteConfig {
   final int progressSimulationIntervalMs;
 
   const RemoteConfig({
-    this.geminiModel = 'gemini-2.0-flash-latest',
+    this.geminiModel = 'gemini-2.0-flash',
     this.geminiApiUrl = 'https://generativelanguage.googleapis.com/v1beta',
     this.geminiMaxTokens = 1024,
     this.geminiTemperature = 0.7,
