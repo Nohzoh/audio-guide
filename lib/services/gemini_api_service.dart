@@ -12,7 +12,6 @@ class GeminiApiService implements AIService {
   @override
   String get displayName => 'Gemini API';
 
-  @override
   String get providerName => 'Gemini API';
 
   @override
@@ -29,6 +28,7 @@ class GeminiApiService implements AIService {
     File imageFile, {
     String? locationContext,
   }) async {
+    final cfg = RemoteConfigService.current;
     final imageBytes = await imageFile.readAsBytes();
     final base64Image = base64Encode(imageBytes);
 
@@ -47,11 +47,11 @@ class GeminiApiService implements AIService {
         'anecdote ou fait marquant, conclusion emotionnelle. '
         'Vise 300 a 400 mots, ton chaleureux et passionne.';
 
+    final url =
+        '${cfg.geminiApiUrl}/models/${cfg.geminiModel}:generateContent?key=$apiKey';
+
     final response = await http.post(
-      Uri.parse(
-        'https://generativelanguage.googleapis.com/v1beta/models/'
-        'gemini-1.5-flash:generateContent?key=$apiKey',
-      ),
+      Uri.parse(url),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'contents': [
@@ -68,8 +68,8 @@ class GeminiApiService implements AIService {
           }
         ],
         'generationConfig': {
-          'maxOutputTokens': RemoteConfigService.current.geminiMaxTokens,
-          'temperature': RemoteConfigService.current.geminiTemperature,
+          'maxOutputTokens': cfg.geminiMaxTokens,
+          'temperature': cfg.geminiTemperature,
         },
       }),
     ).timeout(const Duration(seconds: 30));
@@ -83,15 +83,16 @@ class GeminiApiService implements AIService {
     }
 
     final data = jsonDecode(response.body) as Map<String, dynamic>;
-    final text = data['candidates']?[0]?['content']?['parts']?[0]?['text'] as String?;
+    final text =
+        data['candidates']?[0]?['content']?['parts']?[0]?['text'] as String?;
 
     if (text == null || text.isEmpty) {
-      throw Exception('Gemini API réponse vide');
+      throw Exception('Gemini API reponse vide');
     }
 
     final firstSentence = text.split(RegExp(r'[.!?]')).first.trim();
     final title = firstSentence.length > 60
-        ? '\${firstSentence.substring(0, 60)}...'
+        ? '${firstSentence.substring(0, 60)}...'
         : firstSentence;
 
     return AudioGuideResult(title: title, script: text);
