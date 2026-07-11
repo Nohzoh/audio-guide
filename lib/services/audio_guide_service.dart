@@ -81,8 +81,9 @@ class AudioGuideService extends ChangeNotifier {
       _errorMessage = null;
       notifyListeners();
 
-      final location = await LocationService.getCurrentLocation();
-      final locationContext = location?.contextForPrompt;
+      final locationResult = await LocationService.getCurrentLocation();
+      _lastLocationStatus = locationResult.status;
+      final locationContext = locationResult.info?.contextForPrompt;
 
       if (locationContext != null) {
         debugPrint('Location context: $locationContext');
@@ -97,7 +98,7 @@ class AudioGuideService extends ChangeNotifier {
         locationContext: locationContext,
       );
 
-      // Store location name in result if available
+      // Enrich result with city name if available
       if (locationResult.info?.city != null && _lastResult != null) {
         _lastResult = AudioGuideResult(
           title: _lastResult!.title,
