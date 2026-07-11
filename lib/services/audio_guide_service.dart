@@ -18,6 +18,7 @@ class AudioGuideService extends ChangeNotifier {
   String? _errorMessage;
   String _providerName = '';
   File? _lastImageFile;
+  LocationPermissionStatus _lastLocationStatus = LocationPermissionStatus.granted;
 
   GuideState get state => _state;
   AudioGuideResult? get lastResult => _lastResult;
@@ -25,6 +26,7 @@ class AudioGuideService extends ChangeNotifier {
   String get providerName => _providerName;
   File? get lastImageFile => _lastImageFile;
   bool get isReady => _aiService != null;
+  LocationPermissionStatus get lastLocationStatus => _lastLocationStatus;
 
   Future<void> init(String? anthropicApiKey) async {
     final nanoAvailable = await _nanoService.isAvailable();
@@ -96,11 +98,11 @@ class AudioGuideService extends ChangeNotifier {
       );
 
       // Store location name in result if available
-      if (location?.city != null && _lastResult != null) {
+      if (locationResult.info?.city != null && _lastResult != null) {
         _lastResult = AudioGuideResult(
           title: _lastResult!.title,
           script: _lastResult!.script,
-          locationName: location!.city,
+          locationName: locationResult.info!.city,
         );
       }
 
