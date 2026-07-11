@@ -118,6 +118,54 @@ jobs:
           EOF
           echo "✅ Keystore ready"
 
+      - name: Patch signing in build.gradle.kts
+        run: |
+          FILE="android/app/build.gradle.kts"
+          [ ! -f "$FILE" ] && FILE="android/app/build.gradle"
+
+          if grep -q 'keystoreProperties' "$FILE"; then
+            echo "ℹ️ Signing already present"
+            exit 0
+          fi
+
+          # Prepend keystore loader using Python to avoid heredoc issues
+          python3 - "$FILE" << 'PYEOF'
+          import sys
+          path = sys.argv[1]
+          with open(path, 'r') as f:
+              original = f.read()
+
+          header = '''import java.util.Properties
+import java.io.FileInputStream
+
+val keystorePropertiesFile = rootProject.file("key.properties")
+val keystoreProperties = Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+}
+
+'''
+          signing_configs = '''
+    signingConfigs {
+        create("release") {
+            keyAlias = keystoreProperties["keyAlias"] as String?
+            keyPassword = keystoreProperties["keyPassword"] as String?
+            storeFile = keystoreProperties["storeFile"]?.let { file(it as String) }
+            storePassword = keystoreProperties["storePassword"] as String?
+        }
+    }
+'''
+          result = header + original
+          result = result.replace("android {", "android {" + signing_configs, 1)
+          result = result.replace(
+              'signingConfig = signingConfigs.getByName("debug")',
+              'signingConfig = signingConfigs.getByName("release")'
+          )
+          with open(path, 'w') as f:
+              f.write(result)
+          print("✅ Signing configured in", path)
+          PYEOF
+
       - name: Get dependencies
         run: flutter pub get
 
