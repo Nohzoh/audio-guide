@@ -163,6 +163,16 @@ class _StateIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return switch (state) {
+      GuideState.locating => Row(
+          children: [
+            const SizedBox(
+              width: 16, height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+            ),
+            const SizedBox(width: 8),
+            const Text('Localisation...', style: TextStyle(color: Colors.white70)),
+          ],
+        ).animate().fadeIn(),
       GuideState.analyzing => Row(
           children: [
             const SizedBox(
