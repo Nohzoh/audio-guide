@@ -220,7 +220,7 @@ class AudioGuideService extends ChangeNotifier {
 
   // Simulate smooth progress during steps that don't report progress
   bool _simulating = false;
-  Future<void> _startProgressSimulation(double expectedDuration) async {
+  Future<void> _startProgressSimulation({required double expectedDuration}) async {
     _simulating = true;
     _stepProgress = 0.0;
     final startTime = DateTime.now();
