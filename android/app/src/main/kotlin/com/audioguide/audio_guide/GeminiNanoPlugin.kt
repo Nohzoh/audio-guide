@@ -2,9 +2,7 @@ package com.audioguide.audio_guide
 
 import android.content.Context
 import android.graphics.BitmapFactory
-import com.google.mlkit.genai.common.DownloadCallback
 import com.google.mlkit.genai.common.DownloadStatus
-import com.google.mlkit.genai.common.GenAiException
 import com.google.mlkit.genai.prompt.Generation
 import com.google.mlkit.genai.prompt.GenerativeModel
 import com.google.mlkit.genai.prompt.ImagePart
@@ -28,28 +26,19 @@ class GeminiNanoPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     companion object {
         const val CHANNEL = "com.audioguide/gemini_nano"
 
-        // Segment 1: Visual description
-        const val PROMPT_SEG1 = """Tu es un guide audio culturel. En te basant sur cette image%s, décris en français ce que tu vois avec un ton chaleureux et vivant. Commence directement, sans introduction. Ne mentionne pas de dates ou chiffres précis dont tu n'es pas certain. 2-3 phrases maximum."""
-
-        // Segment 2: Historical/cultural context (continues from seg1)
-        const val PROMPT_SEG2 = """Tu es un guide audio culturel. Suite de ton commentaire sur cette image. Texte déjà dit : "%s". Continue maintenant avec le contexte historique et culturel de ce lieu, en 2-3 phrases qui s'enchaînent naturellement avec ce qui précède. Pas de répétition."""
-
-        // Segment 3: Conclusion
-        const val PROMPT_SEG3 = """Tu es un guide audio culturel. Suite de ton commentaire. Texte déjà dit : "%s". Conclus en 2 phrases sur ce qui rend ce lieu unique et l'émotion qu'il inspire. Ton chaleureux, conclusif."""
-
         fun buildSeg1Prompt(locationContext: String?): String {
-            val loc = if (!locationContext.isNullOrBlank()) " (prise à : $locationContext)" else ""
-            return PROMPT_SEG1.format(loc)
+            val loc = if (!locationContext.isNullOrBlank()) " (prise a : $locationContext)" else ""
+            return "Tu es un guide audio culturel. En te basant sur cette image$loc, decris en francais ce que tu vois avec un ton chaleureux et vivant. Commence directement, sans introduction. Ne mentionne pas de dates ou chiffres precis dont tu n'es pas certain. 2-3 phrases maximum."
         }
 
         fun buildSeg2Prompt(previousText: String): String {
-            val excerpt = if (previousText.length > 200) previousText.takeLast(200) else previousText
-            return PROMPT_SEG2.format(excerpt)
+            val excerpt = previousText.takeLast(200)
+            return "Tu es un guide audio culturel. Suite de ton commentaire. Texte precedent : "$excerpt". Continue avec le contexte historique et culturel en 2-3 phrases qui s'enchainent naturellement. Pas de repetition."
         }
 
         fun buildSeg3Prompt(previousText: String): String {
-            val excerpt = if (previousText.length > 200) previousText.takeLast(200) else previousText
-            return PROMPT_SEG3.format(excerpt)
+            val excerpt = previousText.takeLast(200)
+            return "Tu es un guide audio culturel. Suite de ton commentaire. Texte precedent : "$excerpt". Conclus en 2 phrases sur ce qui rend ce lieu unique et l'emotion qu'il inspire."
         }
     }
 
@@ -87,19 +76,21 @@ class GeminiNanoPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
                     try {
                         generativeModel?.close()
                         val model = Generation.getClient()
-
-                        model.downloadFeature(object : DownloadCallback {
-                            override fun onDownloadStarted(bytesToDownload: Long) {}
-                            override fun onDownloadProgress(bytesDownloaded: Long) {}
-                            override fun onDownloadCompleted() {
-                                generativeModel = model
-                                scope.launch(Dispatchers.Main) { result.success(true) }
+                        // Use download().collect as per official sample
+                        model.download().collect { status ->
+                            when (status) {
+                                is DownloadStatus.DownloadCompleted -> {
+                                    generativeModel = model
+                                    withContext(Dispatchers.Main) { result.success(true) }
+                                }
+                                is DownloadStatus.DownloadFailed -> {
+                                    // Model may already be downloaded
+                                    generativeModel = model
+                                    withContext(Dispatchers.Main) { result.success(true) }
+                                }
+                                else -> { /* progress */ }
                             }
-                            override fun onDownloadFailed(e: GenAiException) {
-                                generativeModel = model
-                                scope.launch(Dispatchers.Main) { result.success(true) }
-                            }
-                        })
+                        }
                     } catch (e: Exception) {
                         withContext(Dispatchers.Main) {
                             result.error("INIT_ERROR", e.message, null)
@@ -128,9 +119,7 @@ class GeminiNanoPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
                         val bitmap = BitmapFactory.decodeFile(imagePath, opts)
                             ?: throw Exception("Cannot decode image")
 
-                        // === CASCADED CALLS ===
-
-                        // Segment 1: Visual description (with image)
+                        // Segment 1: Visual description with image
                         val req1 = generateContentRequest(
                             ImagePart(bitmap),
                             TextPart(buildSeg1Prompt(locationContext))
@@ -138,23 +127,22 @@ class GeminiNanoPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
                         val seg1 = model.generateContent(req1)
                             .candidates.firstOrNull()?.text?.trim() ?: ""
 
-                        // Segment 2: Historical context (text only)
+                        bitmap.recycle()
+
+                        // Segment 2: Historical context (text only, faster)
                         val req2 = generateContentRequest(
                             TextPart(buildSeg2Prompt(seg1))
                         ) { maxOutputTokens = 256 }
                         val seg2 = model.generateContent(req2)
                             .candidates.firstOrNull()?.text?.trim() ?: ""
 
-                        // Segment 3: Conclusion (text only)
+                        // Segment 3: Conclusion
                         val req3 = generateContentRequest(
                             TextPart(buildSeg3Prompt("$seg1 $seg2"))
                         ) { maxOutputTokens = 256 }
                         val seg3 = model.generateContent(req3)
                             .candidates.firstOrNull()?.text?.trim() ?: ""
 
-                        bitmap.recycle()
-
-                        // Assemble full script
                         val fullText = listOf(seg1, seg2, seg3)
                             .filter { it.isNotBlank() }
                             .joinToString(" ")
