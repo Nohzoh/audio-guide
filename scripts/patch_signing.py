@@ -1,5 +1,6 @@
 import sys
 import os
+import re
 
 path = sys.argv[1]
 if not os.path.exists(path):
@@ -8,6 +9,10 @@ if not os.path.exists(path):
 
 with open(path) as f:
     original = f.read()
+
+print("=== Original build.gradle.kts ===")
+print(original)
+print("=== End ===")
 
 if 'keystoreProperties' in original:
     print("Signing already configured")
@@ -23,37 +28,47 @@ header = (
     '}\n\n'
 )
 
-signing = (
-    '\n    signingConfigs {\n'
-    '        create("audiolens") {\n'
-    '            keyAlias = keystoreProperties["keyAlias"] as String?\n'
-    '            keyPassword = keystoreProperties["keyPassword"] as String?\n'
-    '            storeFile = keystoreProperties["storeFile"]?.let { file(it as String) }\n'
-    '            storePassword = keystoreProperties["storePassword"] as String?\n'
-    '        }\n'
-    '    }\n'
-)
+signing_config = '''
+    signingConfigs {
+        create("audiolens") {
+            keyAlias = keystoreProperties["keyAlias"] as String?
+            keyPassword = keystoreProperties["keyPassword"] as String?
+            storeFile = keystoreProperties["storeFile"]?.let { file(it as String) }
+            storePassword = keystoreProperties["storePassword"] as String?
+        }
+    }
+'''
 
 result = header + original
-result = result.replace('android {', 'android {' + signing, 1)
 
-# Apply our keystore to BOTH debug and release buildTypes
-result = result.replace(
-    'signingConfig = signingConfigs.getByName("debug")',
-    'signingConfig = signingConfigs.getByName("audiolens")'
+# Insert signingConfigs after 'android {' (any whitespace variant)
+result = re.sub(
+    r'(android\s*\{)',
+    r'\1' + signing_config,
+    result,
+    count=1
 )
-# Also handle if release buildType exists without signingConfig
-result = result.replace(
-    'buildTypes {\n        release {',
-    'buildTypes {\n        release {\n            signingConfig = signingConfigs.getByName("audiolens")'
+
+# Apply signing to ALL buildTypes using regex
+# Replace any signingConfig = signingConfigs.getByName("debug")
+result = re.sub(
+    r'signingConfig\s*=\s*signingConfigs\.getByName\(["\']debug["\']\)',
+    'signingConfig = signingConfigs.getByName("audiolens")',
+    result
 )
-result = result.replace(
-    'buildTypes {\n        debug {',
-    'buildTypes {\n        debug {\n            signingConfig = signingConfigs.getByName("audiolens")'
-)
+
+# Add signingConfig to debug buildType if not present
+if 'signingConfig = signingConfigs.getByName("audiolens")' not in result:
+    # Find debug buildType and add signing
+    result = re.sub(
+        r'(debug\s*\{)',
+        r'\1\n            signingConfig = signingConfigs.getByName("audiolens")',
+        result
+    )
 
 with open(path, 'w') as f:
     f.write(result)
 
-print(f"Signing configured in {path}")
-print("Both debug and release will use audiolens keystore")
+print("Signing configured successfully")
+print("=== Result ===")
+print(result)
