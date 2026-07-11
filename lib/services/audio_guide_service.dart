@@ -37,6 +37,7 @@ class PipelineProgress {
 class AudioGuideService extends ChangeNotifier {
   AIService? _aiService;
   final TtsService _ttsService = TtsService();
+  TtsService get ttsService => _ttsService;
   final GeminiNanoService _nanoService = GeminiNanoService();
 
   GuideState _state = GuideState.idle;
