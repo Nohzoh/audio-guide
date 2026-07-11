@@ -242,10 +242,10 @@ class _StepDot extends StatelessWidget {
               width: 36,
               height: 36,
               child: TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0.0, end: progress),
+                tween: Tween(begin: 0.0, end: progress < 0 ? 0.0 : progress),
                 duration: const Duration(milliseconds: 400),
                 builder: (_, value, __) => CircularProgressIndicator(
-                  value: value,
+                  value: progress < 0 ? null : value, // null = indeterminate
                   strokeWidth: 2,
                   backgroundColor: Colors.white12,
                   color: isDone ? Colors.greenAccent : Colors.white,
