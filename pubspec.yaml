@@ -33,3 +33,40 @@ flutter:
   assets:
     - assets/images/
     - assets/tts/
+    - assets/tts/
+    - assets/tts/espeak-ng-data/
+    - assets/tts/espeak-ng-data/lang/
+    - assets/tts/espeak-ng-data/lang/aav/
+    - assets/tts/espeak-ng-data/lang/art/
+    - assets/tts/espeak-ng-data/lang/azc/
+    - assets/tts/espeak-ng-data/lang/bat/
+    - assets/tts/espeak-ng-data/lang/bnt/
+    - assets/tts/espeak-ng-data/lang/ccs/
+    - assets/tts/espeak-ng-data/lang/cel/
+    - assets/tts/espeak-ng-data/lang/cus/
+    - assets/tts/espeak-ng-data/lang/dra/
+    - assets/tts/espeak-ng-data/lang/esx/
+    - assets/tts/espeak-ng-data/lang/gmq/
+    - assets/tts/espeak-ng-data/lang/gmw/
+    - assets/tts/espeak-ng-data/lang/grk/
+    - assets/tts/espeak-ng-data/lang/inc/
+    - assets/tts/espeak-ng-data/lang/ine/
+    - assets/tts/espeak-ng-data/lang/ira/
+    - assets/tts/espeak-ng-data/lang/iro/
+    - assets/tts/espeak-ng-data/lang/itc/
+    - assets/tts/espeak-ng-data/lang/jpx/
+    - assets/tts/espeak-ng-data/lang/map/
+    - assets/tts/espeak-ng-data/lang/miz/
+    - assets/tts/espeak-ng-data/lang/myn/
+    - assets/tts/espeak-ng-data/lang/poz/
+    - assets/tts/espeak-ng-data/lang/roa/
+    - assets/tts/espeak-ng-data/lang/sai/
+    - assets/tts/espeak-ng-data/lang/sem/
+    - assets/tts/espeak-ng-data/lang/sit/
+    - assets/tts/espeak-ng-data/lang/tai/
+    - assets/tts/espeak-ng-data/lang/trk/
+    - assets/tts/espeak-ng-data/lang/urj/
+    - assets/tts/espeak-ng-data/lang/zle/
+    - assets/tts/espeak-ng-data/lang/zls/
+    - assets/tts/espeak-ng-data/lang/zlw/
+    - assets/tts/espeak-ng-data/voices/!v/
