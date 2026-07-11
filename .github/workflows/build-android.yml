@@ -40,7 +40,7 @@ jobs:
       - name: Bootstrap Flutter project
         run: flutter create --project-name audio_guide --org com.audioguide --platforms android .
 
-      - name: Patch Kotlin to 2.1.0
+      - name: Patch Kotlin to 2.2.0
         run: |
           python3 - <<'PYEOF'
           import re, os
@@ -48,8 +48,8 @@ jobs:
               if not os.path.exists(path): continue
               with open(path, 'r') as f:
                   content = f.read()
-              content = re.sub(r'(id "org.jetbrains.kotlin.android" version ")[^"]*(")', r'\g<1>2.1.0\2', content)
-              content = re.sub(r'(ext\.kotlin_version\s*=\s*")[^"]*(")', r'\g<1>2.1.0\2', content)
+              content = re.sub(r'(id "org.jetbrains.kotlin.android" version ")[^"]*(")', r'\g<1>2.2.0\2', content)
+              content = re.sub(r'(ext\.kotlin_version\s*=\s*")[^"]*(")', r'\g<1>2.2.0\2', content)
               with open(path, 'w') as f:
                   f.write(content)
               print(f"✅ Patched {path}")
@@ -163,9 +163,9 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Build APK (release)
+      - name: Build APK (debug)
         run: |
-          flutter build apk --release 2>&1 | tee build_output.txt
+          flutter build apk --debug 2>&1 | tee build_output.txt
           exit ${PIPESTATUS[0]}
 
       - name: Show errors on failure
@@ -180,6 +180,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: AudioLens-release-${{ github.sha }}
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: AudioLens-debug-${{ github.sha }}
+          path: build/app/outputs/flutter-apk/app-debug.apk
           retention-days: 30
