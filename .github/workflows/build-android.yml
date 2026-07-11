@@ -28,8 +28,8 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android platform 35
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - name: Install Android SDK 36 + NDK 27
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;27.0.12077973"
 
       - name: Setup Flutter 3.32.2
         uses: subosito/flutter-action@v2
@@ -40,28 +40,28 @@ jobs:
       - name: Bootstrap Flutter project
         run: flutter create --project-name audio_guide --org com.audioguide --platforms android .
 
-      - name: Patch Android config
+      - name: Patch build.gradle.kts
         run: |
-          python3 - <<'PYEOF'
-          import re, os, glob
+          # Flutter 3.32 uses .kts format
+          FILE="android/app/build.gradle.kts"
+          [ ! -f "$FILE" ] && FILE="android/app/build.gradle"
+          echo "Patching $FILE"
 
-          # --- Patch app/build.gradle ---
-          # Flutter 3.32 generates declarative plugins block format
-          build_gradle = 'android/app/build.gradle'
-          if os.path.exists(build_gradle):
-              with open(build_gradle, 'r') as f:
-                  content = f.read()
+          # Patch SDK versions
+          sed -i 's/compileSdk = [0-9]*/compileSdk = 36/' $FILE
+          sed -i 's/minSdk = [0-9]*/minSdk = 26/' $FILE
+          sed -i 's/targetSdk = [0-9]*/targetSdk = 36/' $FILE
+          sed -i 's/compileSdkVersion [0-9]*/compileSdkVersion 36/' $FILE
+          sed -i 's/minSdkVersion [0-9]*/minSdkVersion 26/' $FILE
+          sed -i 's/targetSdkVersion [0-9]*/targetSdkVersion 36/' $FILE
 
-              # Set minSdk, targetSdk, compileSdk
-              content = re.sub(r'minSdk\s*=?\s*\d+', 'minSdk = 26', content)
-              content = re.sub(r'targetSdk\s*=?\s*\d+', 'targetSdk = 35', content)
-              content = re.sub(r'compileSdk\s*=?\s*\d+', 'compileSdk = 35', content)
-              content = re.sub(r'minSdkVersion\s+\d+', 'minSdkVersion 26', content)
-              content = re.sub(r'targetSdkVersion\s+\d+', 'targetSdkVersion 35', content)
-              content = re.sub(r'compileSdkVersion\s+\d+', 'compileSdkVersion 35', content)
+          # Add ndkVersion if not present
+          grep -q 'ndkVersion' $FILE || sed -i 's/compileSdk = 36/compileSdk = 36\n        ndkVersion = "27.0.12077973"/' $FILE
 
-              # Add our dependencies before the last closing brace
-              extra_deps = """
+          # Add our dependencies at end of file
+          if ! grep -q 'tasks-genai' $FILE; then
+            cat >> $FILE << 'DEPS'
+
           dependencies {
               implementation("com.google.mediapipe:tasks-genai:0.10.14")
               implementation("com.google.mlkit:genai-prompt:1.0.0-beta1")
@@ -70,67 +70,34 @@ jobs:
               implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0")
               implementation("com.google.android.gms:play-services-location:21.3.0")
           }
-          """
-              if 'tasks-genai' not in content:
-                  content += extra_deps
+          DEPS
+          fi
 
-              with open(build_gradle, 'w') as f:
-                  f.write(content)
-              print("✅ app/build.gradle patched")
-              print(content[:800])
+          echo "=== Patched file ==="
+          cat $FILE
 
-          # --- Patch settings.gradle for Kotlin version ---
-          for path in ['android/settings.gradle', 'android/build.gradle']:
-              if not os.path.exists(path): continue
-              with open(path, 'r') as f:
-                  c = f.read()
-              c = re.sub(r'(id "org.jetbrains.kotlin.android" version ")[^"]*(")', r'\g<1>2.2.0\2', c)
-              c = re.sub(r'(ext\.kotlin_version\s*=\s*")[^"]*(")', r'\g<1>2.2.0\2', c)
-              with open(path, 'w') as f:
-                  f.write(c)
-              print(f"✅ Patched Kotlin 2.2.0 in {path}")
-          PYEOF
+      - name: Patch Kotlin version
+        run: |
+          for f in android/settings.gradle android/settings.gradle.kts android/build.gradle android/build.gradle.kts; do
+            [ -f "$f" ] && sed -i 's/org.jetbrains.kotlin.android" version "[^"]*"/org.jetbrains.kotlin.android" version "2.2.0"/' $f && echo "✅ Patched $f"
+            [ -f "$f" ] && sed -i 's/id("org.jetbrains.kotlin.android") version "[^"]*"/id("org.jetbrains.kotlin.android") version "2.2.0"/' $f
+          done
 
       - name: Patch AndroidManifest
         run: |
-          python3 - <<'PYEOF'
-          manifest_path = 'android/app/src/main/AndroidManifest.xml'
-          with open(manifest_path, 'r') as f:
-              content = f.read()
-          permissions = """
-              <uses-permission android:name="android.permission.CAMERA"/>
-              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
-              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
-              <uses-permission android:name="android.permission.INTERNET"/>
-              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
-              <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
-              <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
-              <uses-feature android:name="android.hardware.camera" android:required="false"/>
-          """
-          provider = """
-              <provider
-                  android:name="androidx.core.content.FileProvider"
-                  android:authorities="${applicationId}.fileprovider"
-                  android:exported="false"
-                  android:grantUriPermissions="true">
-                  <meta-data
-                      android:name="android.support.FILE_PROVIDER_PATHS"
-                      android:resource="@xml/file_paths"/>
-              </provider>
-          """
-          import re
-          if 'ACCESS_FINE_LOCATION' not in content:
-              content = content.replace('<application', permissions + '\n    <application', 1)
-          if 'FileProvider' not in content:
-              content = content.replace('</application>', provider + '\n</application>')
-          content = re.sub(r'android:label="[^"]*"', 'android:label="AudioLens"', content)
-          with open(manifest_path, 'w') as f:
-              f.write(content)
-          print("✅ Manifest patched")
-          PYEOF
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          if ! grep -q 'ACCESS_FINE_LOCATION' $MANIFEST; then
+            sed -i 's/<application/<uses-permission android:name="android.permission.CAMERA"\/>\n    <uses-permission android:name="android.permission.INTERNET"\/>\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"\/>\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"\/>\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"\/>\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"\/>\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"\/>\n    <uses-feature android:name="android.hardware.camera" android:required="false"\/>\n    <application/' $MANIFEST
+          fi
+          sed -i 's/android:label="[^"]*"/android:label="AudioLens"/' $MANIFEST
+          echo "✅ Manifest patched"
 
-      - name: Create FileProvider paths
+      - name: Add FileProvider
         run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          if ! grep -q 'FileProvider' $MANIFEST; then
+            sed -i 's|</application>|    <provider android:name="androidx.core.content.FileProvider" android:authorities="${applicationId}.fileprovider" android:exported="false" android:grantUriPermissions="true"><meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths"/></provider>\n    </application>|' $MANIFEST
+          fi
           mkdir -p android/app/src/main/res/xml
           cat > android/app/src/main/res/xml/file_paths.xml << 'XML'
           <?xml version="1.0" encoding="utf-8"?>
@@ -139,34 +106,18 @@ jobs:
               <cache-path name="cache" path="."/>
           </paths>
           XML
+          echo "✅ FileProvider configured"
 
       - name: Setup keystore
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/audiolens.jks
-          cat > android/key.properties << 'PROPS'
+          cat > android/key.properties << EOF
           storeFile=audiolens.jks
           storePassword=${{ secrets.KEYSTORE_PASSWORD }}
           keyAlias=${{ secrets.KEY_ALIAS }}
           keyPassword=${{ secrets.KEYSTORE_PASSWORD }}
-          PROPS
-          echo "✅ Keystore configured"
-
-      - name: Find and show build files
-        run: |
-          echo "=== Directory structure ==="
-          find android -name "*.gradle" -o -name "*.gradle.kts" | head -20
-          echo ""
-          echo "=== app/build.gradle ==="
-          cat android/app/build.gradle 2>/dev/null || echo "NOT FOUND"
-          echo ""
-          echo "=== app/build.gradle.kts ==="
-          cat android/app/build.gradle.kts 2>/dev/null || echo "NOT FOUND"
-          echo ""
-          echo "=== settings.gradle ==="
-          cat android/settings.gradle 2>/dev/null || echo "NOT FOUND"
-          echo ""
-          echo "=== settings.gradle.kts ==="
-          cat android/settings.gradle.kts 2>/dev/null || echo "NOT FOUND" 
+          EOF
+          echo "✅ Keystore ready"
 
       - name: Get dependencies
         run: flutter pub get
