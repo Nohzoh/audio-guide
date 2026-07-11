@@ -1,5 +1,5 @@
 {
-  "gemini_model": "gemini-1.5-flash",
+  "gemini_model": "gemini-2.5-flash",
   "gemini_api_url": "https://generativelanguage.googleapis.com/v1beta",
   "gemini_max_tokens": 1024,
   "gemini_temperature": 0.7,
@@ -15,5 +15,11 @@
   "image_max_width": 1280,
   "image_quality": 85,
   "timing_history_size": 5,
-  "progress_simulation_interval_ms": 150
+  "progress_simulation_interval_ms": 150,
+  "gemini_model_fallbacks": [
+    "gemini-3.0-flash",
+    "gemini-3.5-flash",
+    "gemini-2.5-flash",
+    "gemini-1.5-flash"
+  ]
 }
