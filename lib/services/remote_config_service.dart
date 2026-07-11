@@ -109,25 +109,23 @@ class RemoteConfigService {
   static RemoteConfig _current = const RemoteConfig();
   static RemoteConfig get current => _current;
 
-  /// Load config: try remote first, fall back to cache, then defaults.
+  /// Load config: always try remote, use cache only if network fails.
   static Future<void> load() async {
-    // Try remote
+    // Always try remote first (fast, tiny file)
     try {
       final response = await http.get(Uri.parse(_configUrl))
           .timeout(const Duration(seconds: 5));
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body) as Map<String, dynamic>;
         _current = RemoteConfig.fromJson(json);
-        // Cache it
+        // Update cache
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_cacheKey, response.body);
-        await prefs.setInt(
-            _cacheAgeKey, DateTime.now().millisecondsSinceEpoch);
         return;
       }
     } catch (_) {}
 
-    // Fall back to cache
+    // Network failed — fall back to last known cache
     try {
       final prefs = await SharedPreferences.getInstance();
       final cached = prefs.getString(_cacheKey);
@@ -138,6 +136,9 @@ class RemoteConfigService {
       }
     } catch (_) {}
 
-    // Fall back to defaults (already set)
+    // No cache either — use built-in defaults (already set)
   }
+
+  /// Force refresh (e.g. from Settings)
+  static Future<void> forceRefresh() => load();
 }
