@@ -16,6 +16,9 @@ class TtsService {
   Future<void> initialize() async {
     if (_initialized) return;
 
+    // Required: initialize sherpa-onnx native bindings
+    sherpa.initBindings();
+
     final dir = await getApplicationDocumentsDirectory();
     final ttsDir = p.join(dir.path, 'tts');
     await _extractAssets(ttsDir);
