@@ -33,12 +33,12 @@ class GeminiNanoPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
 
         fun buildSeg2Prompt(previousText: String): String {
             val excerpt = previousText.takeLast(200)
-            return "Tu es un guide audio culturel. Suite de ton commentaire. Texte precedent : "$excerpt". Continue avec le contexte historique et culturel en 2-3 phrases qui s'enchainent naturellement. Pas de repetition."
+            return "Tu es un guide audio culturel. Suite de ton commentaire. Texte precedent : $excerpt. Continue avec le contexte historique et culturel en 2-3 phrases qui s'enchainent naturellement. Pas de repetition."
         }
 
         fun buildSeg3Prompt(previousText: String): String {
             val excerpt = previousText.takeLast(200)
-            return "Tu es un guide audio culturel. Suite de ton commentaire. Texte precedent : "$excerpt". Conclus en 2 phrases sur ce qui rend ce lieu unique et l'emotion qu'il inspire."
+            return "Tu es un guide audio culturel. Suite de ton commentaire. Texte precedent : $excerpt. Conclus en 2 phrases sur ce qui rend ce lieu unique et l'emotion qu'il inspire."
         }
     }
 
