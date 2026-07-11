@@ -118,6 +118,7 @@ jobs:
                       android:resource="@xml/file_paths"/>
               </provider>
           """
+          import re
           if 'ACCESS_FINE_LOCATION' not in content:
               content = content.replace('<application', permissions + '\n    <application', 1)
           if 'FileProvider' not in content:
@@ -125,7 +126,6 @@ jobs:
           content = re.sub(r'android:label="[^"]*"', 'android:label="AudioLens"', content)
           with open(manifest_path, 'w') as f:
               f.write(content)
-          import re
           print("✅ Manifest patched")
           PYEOF
 
