@@ -6,13 +6,47 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../services/audio_guide_service.dart';
 import '../services/settings_service.dart';
 import '../services/history_service.dart';
+import '../services/location_service.dart';
 import 'player_screen.dart';
 import 'history_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
-  Future<void> _takePicture(BuildContext context) async {
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+  LocationPermissionStatus _permissionStatus = LocationPermissionStatus.granted;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _checkLocationPermission();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  // Re-check permission when user comes back from settings
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkLocationPermission();
+    }
+  }
+
+  Future<void> _checkLocationPermission() async {
+    final status = await LocationService.checkPermission();
+    if (mounted) setState(() => _permissionStatus = status);
+  }
+
+  Future<void> _takePicture() async {
     final guide = context.read<AudioGuideService>();
     final history = context.read<HistoryService>();
 
@@ -22,7 +56,7 @@ class HomeScreen extends StatelessWidget {
       imageQuality: 85,
       maxWidth: 1280,
     );
-    if (xFile == null || !context.mounted) return;
+    if (xFile == null || !mounted) return;
 
     final imageFile = File(xFile.path);
 
@@ -30,8 +64,11 @@ class HomeScreen extends StatelessWidget {
       builder: (_) => PlayerScreen(imageFile: imageFile),
     ));
 
-    // Analyze and save to history
     final result = await guide.analyzeAndPlay(imageFile);
+
+    // Update permission status after analysis
+    setState(() => _permissionStatus = guide.lastLocationStatus);
+
     if (result != null) {
       await history.addEntry(
         imagePath: imageFile.path,
@@ -40,6 +77,32 @@ class HomeScreen extends StatelessWidget {
         locationName: result.locationName,
       );
     }
+  }
+
+  void _showLocationDeniedForeverDialog() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Géolocalisation désactivée'),
+        content: const Text(
+          'La géolocalisation améliore la précision des descriptions.\n\n'
+          'Pour l\'activer, allez dans les paramètres de l\'application.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Plus tard'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context);
+              LocationService.openSettings();
+            },
+            child: const Text('Ouvrir les paramètres'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -51,7 +114,10 @@ class HomeScreen extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [theme.colorScheme.surface, theme.colorScheme.surfaceContainerHigh],
+            colors: [
+              theme.colorScheme.surface,
+              theme.colorScheme.surfaceContainerHigh,
+            ],
           ),
         ),
         child: SafeArea(
@@ -70,7 +136,6 @@ class HomeScreen extends StatelessWidget {
                     const Spacer(),
                     IconButton(
                       icon: const Icon(Icons.history),
-                      tooltip: 'Historique',
                       onPressed: () => Navigator.push(context,
                         MaterialPageRoute(builder: (_) => const HistoryScreen()),
                       ),
@@ -83,34 +148,117 @@ class HomeScreen extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 8),
-                Consumer<AudioGuideService>(
-                  builder: (context, guide, _) => Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          guide.providerName.contains('Nano')
-                              ? Icons.phone_android
-                              : Icons.cloud_outlined,
-                          size: 14, color: theme.colorScheme.primary,
+
+                // Provider + location status row
+                Row(
+                  children: [
+                    Consumer<AudioGuideService>(
+                      builder: (context, guide, _) => Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primaryContainer
+                              .withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        const SizedBox(width: 6),
-                        Text(
-                          guide.providerName.isEmpty
-                              ? 'Initialisation...'
-                              : guide.providerName,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.primary,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              guide.providerName.contains('Nano')
+                                  ? Icons.phone_android
+                                  : Icons.cloud_outlined,
+                              size: 14,
+                              color: theme.colorScheme.primary,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              guide.providerName.isEmpty
+                                  ? 'Initialisation...'
+                                  : guide.providerName,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.colorScheme.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+
+                    // Location status badge
+                    if (_permissionStatus ==
+                        LocationPermissionStatus.deniedForever)
+                      GestureDetector(
+                        onTap: _showLocationDeniedForeverDialog,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.location_off,
+                                  size: 14, color: Colors.orange),
+                              SizedBox(width: 4),
+                              Text('GPS désactivé',
+                                  style: TextStyle(
+                                      fontSize: 11, color: Colors.orange)),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
-                  ),
+                      )
+                    else if (_permissionStatus ==
+                        LocationPermissionStatus.denied)
+                      GestureDetector(
+                        onTap: () async {
+                          await _checkLocationPermission();
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.location_off,
+                                  size: 14, color: Colors.orange),
+                              SizedBox(width: 4),
+                              Text('Autoriser GPS',
+                                  style: TextStyle(
+                                      fontSize: 11, color: Colors.orange)),
+                            ],
+                          ),
+                        ),
+                      )
+                    else if (_permissionStatus ==
+                        LocationPermissionStatus.granted)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.location_on,
+                                size: 14, color: Colors.green),
+                            SizedBox(width: 4),
+                            Text('GPS actif',
+                                style: TextStyle(
+                                    fontSize: 11, color: Colors.green)),
+                          ],
+                        ),
+                      ),
+                  ],
                 ),
 
                 // History preview
@@ -132,7 +280,8 @@ class HomeScreen extends StatelessWidget {
                               const Spacer(),
                               GestureDetector(
                                 onTap: () => Navigator.push(context,
-                                  MaterialPageRoute(builder: (_) => const HistoryScreen()),
+                                  MaterialPageRoute(
+                                      builder: (_) => const HistoryScreen()),
                                 ),
                                 child: Text('Voir tout',
                                   style: theme.textTheme.labelSmall?.copyWith(
@@ -153,7 +302,8 @@ class HomeScreen extends StatelessWidget {
                                 return GestureDetector(
                                   onTap: () => Navigator.push(context,
                                     MaterialPageRoute(
-                                      builder: (_) => HistoryDetailScreen(entry: entry),
+                                      builder: (_) =>
+                                          HistoryDetailScreen(entry: entry),
                                     ),
                                   ),
                                   child: Container(
@@ -161,12 +311,15 @@ class HomeScreen extends StatelessWidget {
                                     margin: const EdgeInsets.only(right: 8),
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(10),
-                                      color: theme.colorScheme.surfaceContainerHigh,
+                                      color: theme.colorScheme
+                                          .surfaceContainerHigh,
                                     ),
                                     clipBehavior: Clip.antiAlias,
                                     child: File(entry.imagePath).existsSync()
-                                        ? Image.file(File(entry.imagePath), fit: BoxFit.cover)
-                                        : const Icon(Icons.image, color: Colors.white24),
+                                        ? Image.file(File(entry.imagePath),
+                                            fit: BoxFit.cover)
+                                        : const Icon(Icons.image,
+                                            color: Colors.white24),
                                   ),
                                 );
                               },
@@ -183,12 +336,16 @@ class HomeScreen extends StatelessWidget {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.camera_alt_outlined, size: 80, color: Colors.white12),
+                        Icon(Icons.camera_alt_outlined,
+                            size: 80, color: Colors.white12),
                         SizedBox(height: 16),
                         Text(
                           'Pointez votre appareil\nvers un lieu ou un monument',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.white38, fontSize: 15, height: 1.5),
+                          style: TextStyle(
+                              color: Colors.white38,
+                              fontSize: 15,
+                              height: 1.5),
                         ),
                       ],
                     ),
@@ -196,7 +353,7 @@ class HomeScreen extends StatelessWidget {
                 ),
 
                 FilledButton.icon(
-                  onPressed: () => _takePicture(context),
+                  onPressed: _takePicture,
                   icon: const Icon(Icons.camera_alt, size: 24),
                   label: const Text('Prendre une photo',
                       style: TextStyle(fontSize: 18)),
