@@ -28,7 +28,12 @@ class GeminiNanoPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     companion object {
         const val CHANNEL = "com.audioguide/gemini_nano"
 
-        const val AUDIO_GUIDE_PROMPT = """Tu es un guide audio culturel expert et passionné. En te basant sur cette image, génère un commentaire audio en français, avec un ton chaleureux et vivant, comme si tu t'adressais à un touriste curieux devant toi. Commence directement par ce que tu vois, sans introduction ni formule de politesse. Développe ton commentaire en plusieurs paragraphes : décris d'abord ce que tu vois, puis donne le contexte historique ou culturel, raconte une anecdote ou un fait marquant si possible, et conclus par ce qui rend ce lieu ou cet objet unique. Sois précis, évocateur et passionné. Vise environ 150 à 200 mots."""
+        const val PROMPT_BASE = """Tu es un guide audio culturel expert et passionné. En te basant sur cette image%s, génère un commentaire audio en français, avec un ton chaleureux et vivant, comme si tu t'adressais à un touriste curieux devant toi. Commence directement par ce que tu vois, sans introduction ni formule de politesse. Développe ton commentaire en plusieurs paragraphes : décris d'abord ce que tu vois, puis donne le contexte historique ou culturel, raconte une anecdote ou un fait marquant si possible, et conclus par ce qui rend ce lieu ou cet objet unique. Sois précis, évocateur et passionné. Vise environ 150 à 200 mots."""
+
+        fun buildPrompt(locationContext: String?): String {
+            val locationPart = if (!locationContext.isNullOrBlank()) " (prise à : $locationContext)" else ""
+            return PROMPT_BASE.format(locationPart)
+        }
     }
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
@@ -120,9 +125,11 @@ class GeminiNanoPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
                         val bitmap = BitmapFactory.decodeFile(imagePath, opts)
                             ?: throw Exception("Cannot decode image")
 
+                        val locationContext = call.argument<String>("locationContext")
+                        val prompt = buildPrompt(locationContext)
                         val request = generateContentRequest(
                             ImagePart(bitmap),
-                            TextPart(AUDIO_GUIDE_PROMPT)
+                            TextPart(prompt)
                         ) {
                             maxOutputTokens = 1024
                         }
@@ -144,4 +151,5 @@ class GeminiNanoPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
         }
     }
 }
+
 
