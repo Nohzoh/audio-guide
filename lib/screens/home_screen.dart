@@ -9,6 +9,7 @@ import '../services/history_service.dart';
 import '../services/location_service.dart';
 import 'player_screen.dart';
 import 'history_screen.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -142,8 +143,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ),
                     IconButton(
                       icon: const Icon(Icons.settings_outlined),
-                      onPressed: () =>
-                          context.read<SettingsService>().resetOnboarding(),
+                      onPressed: () => Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                      ),
                     ),
                   ],
                 ),
