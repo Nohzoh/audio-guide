@@ -12,6 +12,9 @@ class TtsService {
   bool _isPlaying = false;
   Function()? onComplete;
 
+  // Sentence-level progress: 0.0 to 1.0
+  Function(double progress)? onProgress;
+
   bool get isPlaying => _isPlaying;
 
   Future<void> initialize() async {
@@ -22,7 +25,6 @@ class TtsService {
     final dir = await getApplicationDocumentsDirectory();
     final ttsDir = p.join(dir.path, 'tts');
 
-    // Force re-extract if espeak-ng-data is missing
     final dataDirPath = p.join(ttsDir, 'espeak-ng-data');
     if (!Directory(dataDirPath).existsSync()) {
       if (Directory(ttsDir).existsSync()) {
@@ -30,18 +32,17 @@ class TtsService {
       }
     }
 
-    // Extract assets in background isolate to avoid freezing UI
     await _extractAssetsBackground(ttsDir);
 
     final modelPath = p.join(ttsDir, 'fr_FR-miro-high.onnx');
     final tokensPath = p.join(ttsDir, 'tokens.txt');
 
     if (!File(modelPath).existsSync()) {
-      throw Exception('TTS model not found: ');
+      throw Exception('TTS model not found: $modelPath');
     }
     if (!Directory(dataDirPath).existsSync()) {
       final extracted = Directory(ttsDir).listSync().map((e) => e.path.split('/').last).join(', ');
-      throw Exception('espeak-ng-data not found. Extracted: ');
+      throw Exception('espeak-ng-data not found. Extracted: $extracted');
     }
 
     final vits = sherpa.OfflineTtsVitsModelConfig(
@@ -62,13 +63,10 @@ class TtsService {
       maxNumSenetences: 1,
     );
 
-    // Create TTS in background to avoid freezing
     _tts = await _createTtsInBackground(config);
     _initialized = true;
   }
 
-  // Extract assets using rootBundle (must stay on main isolate)
-  // but we do it async to avoid blocking
   Future<void> _extractAssetsBackground(String targetDir) async {
     final modelFile = File(p.join(targetDir, 'fr_FR-miro-high.onnx'));
     if (await modelFile.exists() &&
@@ -99,19 +97,23 @@ class TtsService {
         );
       } catch (_) {}
 
-      // Yield to UI thread periodically
       await Future.delayed(Duration.zero);
     }
   }
 
-  // Create OfflineTts in a separate isolate to avoid freezing
   static Future<sherpa.OfflineTts> _createTtsInBackground(
       sherpa.OfflineTtsConfig config) async {
-    // sherpa.OfflineTts creation can be slow - run in isolate
     return await Isolate.run(() {
       sherpa.initBindings();
       return sherpa.OfflineTts(config);
     });
+  }
+
+  /// Split text into sentences for progress tracking
+  static List<String> _splitSentences(String text) {
+    // Split on . ! ? followed by space or end
+    final parts = text.split(RegExp(r'(?<=[.!?])\s+'));
+    return parts.where((s) => s.trim().isNotEmpty).toList();
   }
 
   Future<void> speak(String text) async {
@@ -121,34 +123,73 @@ class TtsService {
 
     _isPlaying = true;
 
-    // Generate audio in background isolate
+    final sentences = _splitSentences(text);
+    final totalChars = text.length;
+
+    // Generate full audio in background
     final tmpDir = await getTemporaryDirectory();
     final wavPath = p.join(tmpDir.path, 'tts_output.wav');
 
-    await _generateInBackground(tts, text, wavPath);
+    final sampleRate = await _generateInBackground(tts, text, wavPath);
 
-    // Play (non-blocking - completion handled via callback)
+    // Estimate duration per sentence proportional to char count
+    // We'll get real duration from the WAV file
+    final wavFile = File(wavPath);
+    final wavBytes = await wavFile.readAsBytes();
+    // WAV: data size at offset 40 (4 bytes LE), sample rate at 24
+    final dataSize = wavBytes.buffer.asByteData().getUint32(40, Endian.little);
+    final sr = wavBytes.buffer.asByteData().getUint32(24, Endian.little);
+    final totalDurationMs = (dataSize / (sr * 2) * 1000).round();
+
+    // Start playback (non-blocking)
     const channel = MethodChannel('com.audioguide/audio_player');
     channel.invokeMethod('playWav', {'path': wavPath}).then((_) {
       _isPlaying = false;
       onComplete?.call();
     });
+
+    // Drive sentence-level progress while audio plays
+    _driveSentenceProgress(sentences, totalChars, totalDurationMs);
   }
 
-  static Future<void> _generateInBackground(
+  void _driveSentenceProgress(
+      List<String> sentences, int totalChars, int totalDurationMs) async {
+    if (sentences.isEmpty || totalDurationMs <= 0) return;
+
+    int elapsed = 0;
+    int charsSoFar = 0;
+
+    for (int i = 0; i < sentences.length; i++) {
+      if (!_isPlaying) break;
+
+      // Report progress at start of each sentence
+      final progress = charsSoFar / totalChars;
+      onProgress?.call(progress.clamp(0.0, 1.0));
+
+      // Wait proportional to this sentence's char count
+      final sentenceChars = sentences[i].length;
+      final sentenceDuration = (sentenceChars / totalChars * totalDurationMs).round();
+
+      await Future.delayed(Duration(milliseconds: sentenceDuration));
+      charsSoFar += sentenceChars + 1; // +1 for space
+    }
+
+    // Final progress
+    if (_isPlaying) onProgress?.call(1.0);
+  }
+
+  static Future<int> _generateInBackground(
       sherpa.OfflineTts tts, String text, String wavPath) async {
-    await Isolate.run(() {
+    return await Isolate.run(() {
       sherpa.initBindings();
-      final genConfig = sherpa.OfflineTtsGenerationConfig(
-        sid: 0,
-        speed: 0.9,
-      );
+      final genConfig = sherpa.OfflineTtsGenerationConfig(sid: 0, speed: 0.9);
       final audio = tts.generateWithConfig(text: text, config: genConfig);
       sherpa.writeWave(
         filename: wavPath,
         samples: audio.samples,
         sampleRate: audio.sampleRate,
       );
+      return audio.sampleRate;
     });
   }
 
