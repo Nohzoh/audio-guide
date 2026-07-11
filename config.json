@@ -1,7 +1,7 @@
 {
   "gemini_model": "gemini-2.5-flash-preview-05-20",
   "gemini_api_url": "https://generativelanguage.googleapis.com/v1beta",
-  "gemini_max_tokens": 1024,
+  "gemini_max_tokens": 2048,
   "gemini_temperature": 0.7,
   "gemini_nano_max_tokens": 256,
   "gemini_nano_cascade_segments": 3,
