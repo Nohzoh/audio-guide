@@ -16,25 +16,36 @@ class TtsService {
   Future<void> initialize() async {
     if (_initialized) return;
 
-    // Required: initialize sherpa-onnx native bindings
     sherpa.initBindings();
 
     final dir = await getApplicationDocumentsDirectory();
     final ttsDir = p.join(dir.path, 'tts');
     await _extractAssets(ttsDir);
 
+    final modelPath = p.join(ttsDir, 'fr_FR-miro-high.onnx');
+    final tokensPath = p.join(ttsDir, 'tokens.txt');
+    final dataDirPath = p.join(ttsDir, 'espeak-ng-data');
+
+    // Verify files exist
+    if (!File(modelPath).existsSync()) {
+      throw Exception('TTS model not found at $modelPath');
+    }
+
+    final vits = sherpa.OfflineTtsVitsModelConfig(
+      model: modelPath,
+      tokens: tokensPath,
+      dataDir: dataDirPath,
+    );
+
+    final modelConfig = sherpa.OfflineTtsModelConfig(
+      vits: vits,
+      numThreads: 2,
+      debug: false,
+      provider: 'cpu',
+    );
+
     final config = sherpa.OfflineTtsConfig(
-      model: sherpa.OfflineTtsModelConfig(
-        vits: sherpa.OfflineTtsVitsModelConfig(
-          model: p.join(ttsDir, 'fr_FR-miro-high.onnx'),
-          tokens: p.join(ttsDir, 'tokens.txt'),
-          dataDir: p.join(ttsDir, 'espeak-ng-data'),
-        ),
-        numThreads: 2,
-        debug: false,
-        provider: 'cpu',
-      ),
-      ruleFsts: '',
+      model: modelConfig,
       maxNumSenetences: 1,
     );
 
@@ -54,6 +65,7 @@ class TtsService {
 
     for (final asset in assets) {
       final relativePath = asset.replaceFirst('assets/tts/', '');
+      if (relativePath.isEmpty) continue;
       final targetPath = p.join(targetDir, relativePath);
       await Directory(p.dirname(targetPath)).create(recursive: true);
       final data = await rootBundle.load(asset);
@@ -70,44 +82,28 @@ class TtsService {
 
     _isPlaying = true;
 
-    final audio = tts.generate(text: text, sid: 0, speed: 0.9);
-    final wav = _encodeWav(audio.samples, audio.sampleRate);
+    final genConfig = sherpa.OfflineTtsGenerationConfig(
+      sid: 0,
+      speed: 0.9,
+    );
 
+    final audio = tts.generateWithConfig(text: text, config: genConfig);
+
+    // Write WAV to temp file using sherpa's built-in function
     final tmpDir = await getTemporaryDirectory();
-    final file = File(p.join(tmpDir.path, 'tts_output.wav'));
-    await file.writeAsBytes(wav);
+    final wavPath = p.join(tmpDir.path, 'tts_output.wav');
+    sherpa.writeWave(
+      filename: wavPath,
+      samples: audio.samples,
+      sampleRate: audio.sampleRate,
+    );
 
+    // Play via MediaPlayer
     const channel = MethodChannel('com.audioguide/audio_player');
-    await channel.invokeMethod('playWav', {'path': file.path});
+    await channel.invokeMethod('playWav', {'path': wavPath});
 
     _isPlaying = false;
     onComplete?.call();
-  }
-
-  List<int> _encodeWav(List<double> samples, int sampleRate) {
-    final dataSize = samples.length * 2;
-    final buffer = ByteData(44 + dataSize);
-    void setStr(int offset, String s) {
-      for (int i = 0; i < s.length; i++) buffer.setUint8(offset + i, s.codeUnitAt(i));
-    }
-    setStr(0, 'RIFF');
-    buffer.setUint32(4, 36 + dataSize, Endian.little);
-    setStr(8, 'WAVE');
-    setStr(12, 'fmt ');
-    buffer.setUint32(16, 16, Endian.little);
-    buffer.setUint16(20, 1, Endian.little);
-    buffer.setUint16(22, 1, Endian.little);
-    buffer.setUint32(24, sampleRate, Endian.little);
-    buffer.setUint32(28, sampleRate * 2, Endian.little);
-    buffer.setUint16(32, 2, Endian.little);
-    buffer.setUint16(34, 16, Endian.little);
-    setStr(36, 'data');
-    buffer.setUint32(40, dataSize, Endian.little);
-    for (int i = 0; i < samples.length; i++) {
-      buffer.setInt16(44 + i * 2,
-          (samples[i].clamp(-1.0, 1.0) * 32767).round(), Endian.little);
-    }
-    return buffer.buffer.asUint8List();
   }
 
   Future<void> pause() async {
