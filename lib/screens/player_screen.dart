@@ -237,15 +237,19 @@ class _StepDot extends StatelessWidget {
         Stack(
           alignment: Alignment.center,
           children: [
-            // Progress ring
+            // Progress ring - TweenAnimationBuilder smooths rapid updates
             SizedBox(
               width: 36,
               height: 36,
-              child: CircularProgressIndicator(
-                value: progress,
-                strokeWidth: 2,
-                backgroundColor: Colors.white12,
-                color: isDone ? Colors.greenAccent : Colors.white,
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.0, end: progress),
+                duration: const Duration(milliseconds: 400),
+                builder: (_, value, __) => CircularProgressIndicator(
+                  value: value,
+                  strokeWidth: 2,
+                  backgroundColor: Colors.white12,
+                  color: isDone ? Colors.greenAccent : Colors.white,
+                ),
               ),
             ),
             // Icon
@@ -269,7 +273,7 @@ class _StepDot extends StatelessWidget {
           ),
         ),
       ],
-    ).animate(target: isActive ? 1 : 0).scaleXY(begin: 0.9, end: 1.0);
+    );
   }
 }
 
