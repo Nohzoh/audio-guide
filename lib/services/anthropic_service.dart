@@ -18,7 +18,7 @@ class AnthropicService implements AIService {
   Future<void> initialize() async {}
 
   @override
-  Future<AudioGuideResult> analyzeImage(File imageFile) async {
+  Future<AudioGuideResult> analyzeImage(File imageFile, {String? locationContext}) async {
     final bytes = await imageFile.readAsBytes();
     final base64Image = base64Encode(bytes);
 
