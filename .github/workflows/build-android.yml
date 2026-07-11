@@ -42,21 +42,20 @@ jobs:
 
       - name: Patch build.gradle.kts
         run: |
-          # Flutter 3.32 uses .kts format
           FILE="android/app/build.gradle.kts"
           [ ! -f "$FILE" ] && FILE="android/app/build.gradle"
           echo "Patching $FILE"
 
-          # Patch SDK versions
-          sed -i 's/compileSdk = [0-9]*/compileSdk = 36/' $FILE
-          sed -i 's/minSdk = [0-9]*/minSdk = 26/' $FILE
-          sed -i 's/targetSdk = [0-9]*/targetSdk = 36/' $FILE
-          sed -i 's/compileSdkVersion [0-9]*/compileSdkVersion 36/' $FILE
-          sed -i 's/minSdkVersion [0-9]*/minSdkVersion 26/' $FILE
-          sed -i 's/targetSdkVersion [0-9]*/targetSdkVersion 36/' $FILE
+          # Replace full lines containing flutter.xxxSdkVersion or plain numbers
+          sed -i 's|^\s*compileSdk\s*=.*|    compileSdk = 36|' $FILE
+          sed -i 's|^\s*minSdk\s*=.*|        minSdk = 26|' $FILE
+          sed -i 's|^\s*targetSdk\s*=.*|        targetSdk = 36|' $FILE
+          sed -i 's|^\s*compileSdkVersion\s.*|    compileSdkVersion 36|' $FILE
+          sed -i 's|^\s*minSdkVersion\s.*|        minSdkVersion 26|' $FILE
+          sed -i 's|^\s*targetSdkVersion\s.*|        targetSdkVersion 36|' $FILE
 
-          # Add ndkVersion if not present
-          grep -q 'ndkVersion' $FILE || sed -i 's/compileSdk = 36/compileSdk = 36\n        ndkVersion = "27.0.12077973"/' $FILE
+          # Add ndkVersion after compileSdk line
+          grep -q 'ndkVersion' $FILE || sed -i '/compileSdk = 36/a\        ndkVersion = "27.0.12077973"' $FILE
 
           # Add our dependencies at end of file
           if ! grep -q 'tasks-genai' $FILE; then
