@@ -131,7 +131,7 @@ class GeminiNanoPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
                             ImagePart(bitmap),
                             TextPart(prompt)
                         ) {
-                            maxOutputTokens = 1024
+                            maxOutputTokens = 256
                         }
 
                         val response = model.generateContent(request)
