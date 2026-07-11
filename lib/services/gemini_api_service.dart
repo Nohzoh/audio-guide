@@ -88,8 +88,8 @@ class GeminiApiService implements AIService {
       if (resp.statusCode == 200) {
         response = resp;
         break;
-      } else if (resp.statusCode == 429 || resp.statusCode == 404) {
-        // Quota exceeded or model unavailable — try next model
+      } else if (resp.statusCode == 429 || resp.statusCode == 404 || resp.statusCode == 503) {
+        // Quota exceeded, model unavailable, or overloaded — try next model
         final err = jsonDecode(resp.body);
         lastError = err['error']?['message'] ?? 'Quota exceeded';
         continue;
