@@ -36,7 +36,7 @@ class RemoteConfig {
 
   const RemoteConfig({
     this.geminiModel = 'gemini-2.0-flash',
-    this.geminiApiUrl = 'https://generativelanguage.googleapis.com/v1beta',
+    this.geminiApiUrl = 'https://generativelanguage.googleapis.com/v1',
     this.geminiMaxTokens = 1024,
     this.geminiTemperature = 0.7,
     this.geminiNanoMaxTokens = 256,
