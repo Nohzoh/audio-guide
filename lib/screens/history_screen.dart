@@ -275,14 +275,13 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                   ),
                 ),
 
-                const Spacer(),
-
                 // Content
-                Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                       // Date
                       Text(
                         dateStr,
