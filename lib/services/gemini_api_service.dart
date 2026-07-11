@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'ai_service.dart';
+import 'remote_config_service.dart';
 
 class GeminiApiService implements AIService {
   final String apiKey;
@@ -67,8 +68,8 @@ class GeminiApiService implements AIService {
           }
         ],
         'generationConfig': {
-          'maxOutputTokens': 1024,
-          'temperature': 0.7,
+          'maxOutputTokens': RemoteConfigService.current.geminiMaxTokens,
+          'temperature': RemoteConfigService.current.geminiTemperature,
         },
       }),
     ).timeout(const Duration(seconds: 30));
