@@ -212,16 +212,15 @@ class AudioGuideService extends ChangeNotifier {
       _stepProgress = 0.0;
       notifyListeners();
 
-      _startProgressSimulation(expectedDuration: _ttsDurations.isNotEmpty
-          ? _ttsDurations.reduce((a, b) => a + b) / _ttsDurations.length
-          : 5.0);
+      // TTS: no progress simulation (causes flicker), use indeterminate indicator
+      _stepProgress = -1.0; // -1 signals indeterminate in UI
+      notifyListeners();
 
       final ttsStart = DateTime.now();
       await _ttsService.speak(_lastResult!.script);
       final ttsDuration = DateTime.now().difference(ttsStart).inMilliseconds / 1000.0;
       _ttsDurations.add(ttsDuration);
       if (_ttsDurations.length > 5) _ttsDurations.removeAt(0);
-      _stopProgressSimulation();
 
       await _saveTimings();
 
