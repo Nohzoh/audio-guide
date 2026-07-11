@@ -44,27 +44,15 @@ jobs:
         run: |
           python3 - <<'PYEOF'
           import re, os
-
           for path in ['android/settings.gradle', 'android/build.gradle']:
               if not os.path.exists(path): continue
               with open(path, 'r') as f:
                   content = f.read()
-              # Patch plugins block (settings.gradle style)
-              content = re.sub(
-                  r'(id "org.jetbrains.kotlin.android" version ")[^"]*(")',
-                  r'\g<1>2.1.0\2',
-                  content
-              )
-              # Patch ext.kotlin_version (build.gradle style)
-              content = re.sub(
-                  r'(ext\.kotlin_version\s*=\s*")[^"]*(")',
-                  r'\g<1>2.1.0\2',
-                  content
-              )
+              content = re.sub(r'(id "org.jetbrains.kotlin.android" version ")[^"]*(")', r'\g<1>2.1.0\2', content)
+              content = re.sub(r'(ext\.kotlin_version\s*=\s*")[^"]*(")', r'\g<1>2.1.0\2', content)
               with open(path, 'w') as f:
                   f.write(content)
               print(f"✅ Patched {path}")
-              print(content[:500])
           PYEOF
 
       - name: Patch AndroidManifest with permissions
@@ -99,11 +87,11 @@ jobs:
           print("✅ Manifest patched")
           PYEOF
 
-
       - name: Set app name to AudioLens
         run: |
           sed -i 's/android:label="[^"]*"/android:label="AudioLens"/' android/app/src/main/AndroidManifest.xml
           echo "✅ App name set to AudioLens"
+
       - name: Create FileProvider paths
         run: |
           mkdir -p android/app/src/main/res/xml
@@ -115,12 +103,67 @@ jobs:
           </paths>
           XML
 
+      - name: Setup keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/audiolens.jks
+          echo "storeFile=audiolens.jks" > android/key.properties
+          echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}" >> android/key.properties
+          echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> android/key.properties
+          echo "keyPassword=${{ secrets.KEYSTORE_PASSWORD }}" >> android/key.properties
+          echo "✅ Keystore configured"
+
+      - name: Patch build.gradle for signing
+        run: |
+          python3 - <<'PYEOF'
+          with open('android/app/build.gradle', 'r') as f:
+              content = f.read()
+
+          signing_config = """
+          def keystoreProperties = new Properties()
+          def keystorePropertiesFile = rootProject.file('key.properties')
+          if (keystorePropertiesFile.exists()) {
+              keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+          }
+          """
+
+          signing_block = """
+              signingConfigs {
+                  release {
+                      keyAlias keystoreProperties['keyAlias']
+                      keyPassword keystoreProperties['keyPassword']
+                      storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+                      storePassword keystoreProperties['storePassword']
+                  }
+              }
+          """
+
+          # Add keystore properties loader before android block
+          if 'keystoreProperties' not in content:
+              content = content.replace(
+                  "apply plugin: 'com.android.application'",
+                  "apply plugin: 'com.android.application'\n" + signing_config
+              )
+              # Add signingConfigs block and use it in release
+              content = content.replace(
+                  'android {',
+                  'android {\n' + signing_block
+              )
+              content = content.replace(
+                  'signingConfig signingConfigs.debug',
+                  'signingConfig signingConfigs.release'
+              )
+
+          with open('android/app/build.gradle', 'w') as f:
+              f.write(content)
+          print("✅ build.gradle patched for signing")
+          PYEOF
+
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Build APK (debug)
+      - name: Build APK (release)
         run: |
-          flutter build apk --debug 2>&1 | tee build_output.txt
+          flutter build apk --release 2>&1 | tee build_output.txt
           exit ${PIPESTATUS[0]}
 
       - name: Show errors on failure
@@ -135,6 +178,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: audio-guide-debug-${{ github.sha }}
-          path: build/app/outputs/flutter-apk/app-debug.apk
-          retention-days: 7
+          name: AudioLens-release-${{ github.sha }}
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
