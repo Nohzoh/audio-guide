@@ -20,17 +20,27 @@ class TtsService {
 
     final dir = await getApplicationDocumentsDirectory();
     final ttsDir = p.join(dir.path, 'tts');
+
+    // Force re-extract if espeak-ng-data is missing
+    final dataDirPath = p.join(ttsDir, 'espeak-ng-data');
+    final modelPath = p.join(ttsDir, 'fr_FR-miro-high.onnx');
+    if (!Directory(dataDirPath).existsSync()) {
+      // Delete and re-extract everything
+      if (Directory(ttsDir).existsSync()) {
+        await Directory(ttsDir).delete(recursive: true);
+      }
+    }
+
     await _extractAssets(ttsDir);
 
-    final modelPath = p.join(ttsDir, 'fr_FR-miro-high.onnx');
     final tokensPath = p.join(ttsDir, 'tokens.txt');
-    final dataDirPath = p.join(ttsDir, 'espeak-ng-data');
 
-    // Verify files exist
     if (!File(modelPath).existsSync()) {
-      throw Exception('TTS model not found at $modelPath. '
-        'ttsDir: $ttsDir, '
-        'exists: ${Directory(ttsDir).existsSync()}');
+      throw Exception('TTS model not found: ');
+    }
+    if (!Directory(dataDirPath).existsSync()) {
+      throw Exception('espeak-ng-data not found: . '
+          'Assets extracted: ${await _listExtracted(ttsDir)}');
     }
 
     final vits = sherpa.OfflineTtsVitsModelConfig(
@@ -42,7 +52,7 @@ class TtsService {
     final modelConfig = sherpa.OfflineTtsModelConfig(
       vits: vits,
       numThreads: 2,
-      debug: true,
+      debug: false,
       provider: 'cpu',
     );
 
@@ -55,35 +65,58 @@ class TtsService {
       _tts = sherpa.OfflineTts(config);
       _initialized = true;
     } catch (e) {
-      throw Exception('Failed to create TTS: $e. '
-          'model=$modelPath, '
-          'tokens=$tokensPath, '
-          'dataDir=$dataDirPath, '
-          'modelExists=${File(modelPath).existsSync()}, '
-          'tokensExists=${File(tokensPath).existsSync()}, '
-          'dataDirExists=${Directory(dataDirPath).existsSync()}');
+      throw Exception('Failed to create TTS: $e');
+    }
+  }
+
+  Future<String> _listExtracted(String dir) async {
+    try {
+      final entities = Directory(dir).listSync(recursive: false);
+      return entities.map((e) => e.path.split('/').last).join(', ');
+    } catch (_) {
+      return 'error listing';
     }
   }
 
   Future<void> _extractAssets(String targetDir) async {
     final modelFile = File(p.join(targetDir, 'fr_FR-miro-high.onnx'));
-    if (await modelFile.exists()) return;
+    if (await modelFile.exists() &&
+        Directory(p.join(targetDir, 'espeak-ng-data')).existsSync()) {
+      return;
+    }
 
     await Directory(targetDir).create(recursive: true);
 
+    // Use AssetBundle to list and extract all tts assets
     final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
-    final assets = manifest.listAssets()
-        .where((a) => a.startsWith('assets/tts/'));
+    final allAssets = manifest.listAssets();
+    final ttsAssets = allAssets.where((a) => a.startsWith('assets/tts/')).toList();
 
-    for (final asset in assets) {
-      final relativePath = asset.replaceFirst('assets/tts/', '');
+    for (final asset in ttsAssets) {
+      // Remove 'assets/tts/' prefix
+      var relativePath = asset.replaceFirst('assets/tts/', '');
       if (relativePath.isEmpty) continue;
+
+      // URL decode the path (assets with spaces are URL-encoded)
+      relativePath = Uri.decodeComponent(relativePath);
+
       final targetPath = p.join(targetDir, relativePath);
+      final targetFile = File(targetPath);
+
+      // Create parent directory
       await Directory(p.dirname(targetPath)).create(recursive: true);
-      final data = await rootBundle.load(asset);
-      await File(targetPath).writeAsBytes(
-        data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
-      );
+
+      // Only write if it's a file (not a directory entry)
+      if (!relativePath.endsWith('/')) {
+        try {
+          final data = await rootBundle.load(asset);
+          await targetFile.writeAsBytes(
+            data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+          );
+        } catch (e) {
+          // Skip files that can't be loaded
+        }
+      }
     }
   }
 
@@ -101,7 +134,6 @@ class TtsService {
 
     final audio = tts.generateWithConfig(text: text, config: genConfig);
 
-    // Write WAV to temp file using sherpa's built-in function
     final tmpDir = await getTemporaryDirectory();
     final wavPath = p.join(tmpDir.path, 'tts_output.wav');
     sherpa.writeWave(
@@ -110,7 +142,6 @@ class TtsService {
       sampleRate: audio.sampleRate,
     );
 
-    // Play via MediaPlayer
     const channel = MethodChannel('com.audioguide/audio_player');
     await channel.invokeMethod('playWav', {'path': wavPath});
 
