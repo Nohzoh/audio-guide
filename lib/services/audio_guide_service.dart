@@ -4,8 +4,9 @@ import 'ai_service.dart';
 import 'gemini_nano_service.dart';
 import 'anthropic_service.dart';
 import 'tts_service.dart';
+import 'location_service.dart';
 
-enum GuideState { idle, initializing, analyzing, speaking, paused, error }
+enum GuideState { idle, locating, analyzing, speaking, paused, error }
 
 class AudioGuideService extends ChangeNotifier {
   AIService? _aiService;
@@ -26,9 +27,6 @@ class AudioGuideService extends ChangeNotifier {
   bool get isReady => _aiService != null;
 
   Future<void> init(String? anthropicApiKey) async {
-    _state = GuideState.initializing;
-    notifyListeners();
-
     final nanoAvailable = await _nanoService.isAvailable();
     if (nanoAvailable) {
       try {
@@ -40,7 +38,9 @@ class AudioGuideService extends ChangeNotifier {
       }
     }
 
-    if (_aiService == null && anthropicApiKey != null && anthropicApiKey.isNotEmpty) {
+    if (_aiService == null &&
+        anthropicApiKey != null &&
+        anthropicApiKey.isNotEmpty) {
       _aiService = AnthropicService(apiKey: anthropicApiKey);
       _providerName = 'Claude (cloud)';
     }
@@ -50,7 +50,6 @@ class AudioGuideService extends ChangeNotifier {
       notifyListeners();
     };
 
-    _state = GuideState.idle;
     notifyListeners();
   }
 
@@ -64,7 +63,6 @@ class AudioGuideService extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Returns the result so callers can save to history
   Future<AudioGuideResult?> analyzeAndPlay(File imageFile) async {
     final service = _aiService;
     if (service == null) {
@@ -75,13 +73,38 @@ class AudioGuideService extends ChangeNotifier {
     }
 
     try {
-      _state = GuideState.analyzing;
+      // Step 1: Get GPS location
+      _state = GuideState.locating;
       _lastImageFile = imageFile;
       _errorMessage = null;
       notifyListeners();
 
-      _lastResult = await service.analyzeImage(imageFile);
+      final location = await LocationService.getCurrentLocation();
+      final locationContext = location?.contextForPrompt;
 
+      if (locationContext != null) {
+        debugPrint('Location context: $locationContext');
+      }
+
+      // Step 2: Analyze image with location context
+      _state = GuideState.analyzing;
+      notifyListeners();
+
+      _lastResult = await service.analyzeImage(
+        imageFile,
+        locationContext: locationContext,
+      );
+
+      // Store location name in result if available
+      if (location?.city != null && _lastResult != null) {
+        _lastResult = AudioGuideResult(
+          title: _lastResult!.title,
+          script: _lastResult!.script,
+          locationName: location!.city,
+        );
+      }
+
+      // Step 3: Speak
       _state = GuideState.speaking;
       notifyListeners();
 
