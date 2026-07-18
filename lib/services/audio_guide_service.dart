@@ -31,6 +31,7 @@ class AudioGuideService extends ChangeNotifier {
   final TtsService _ttsService = TtsService();
   TtsService get ttsService => _ttsService;
   GeminiTtsService? _geminiTtsService;
+  GeminiTtsService? get geminiTtsService => _geminiTtsService;
 
   final GeminiNanoService _nanoService = GeminiNanoService();
 
