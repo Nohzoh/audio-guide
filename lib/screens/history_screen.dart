@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -181,6 +182,14 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     return guide.geminiTtsService ?? guide.ttsService;
   }
 
+  // Play cached audio file directly without re-generating TTS
+  Future<void> _playCachedAudio(String path) async {
+    const channel = MethodChannel('com.audioguide/audio_player');
+    channel.invokeMethod('playWav', {'path': path}).then((_) {
+      setState(() => _isPlaying = false);
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -188,6 +197,9 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
 
   @override
   void dispose() {
+    // Stop playback when leaving screen
+    const channel = MethodChannel('com.audioguide/audio_player');
+    channel.invokeMethod('stop');
     super.dispose();
   }
 
@@ -198,9 +210,15 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
       setState(() => _isPlaying = false);
     } else {
       setState(() => _isPlaying = true);
-      final tts = _getTts(context);
-      tts.onComplete = () => setState(() => _isPlaying = false);
-      await tts.speak(widget.entry.script);
+      if (widget.entry.hasAudio) {
+        // Use cached audio — no TTS regeneration needed
+        await _playCachedAudio(widget.entry.audioPath!);
+      } else {
+        // No cache — generate with TTS
+        final tts = _getTts(context);
+        tts.onComplete = () => setState(() => _isPlaying = false);
+        await tts.speak(widget.entry.script);
+      }
     }
   }
 
