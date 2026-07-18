@@ -48,6 +48,9 @@ jobs:
       - name: Bootstrap Flutter project
         run: flutter create --project-name audio_guide --org com.audioguide --platforms android . 2>&1 | head -20 || true
 
+      - name: Show pubspec after bootstrap
+        run: head -30 pubspec.yaml
+
       - name: Patch build.gradle.kts
         run: |
           FILE="android/app/build.gradle.kts"
@@ -157,7 +160,7 @@ jobs:
           cat android/key.properties 2>/dev/null || echo "NOT FOUND"
 
       - name: Get dependencies
-        run: flutter pub get
+        run: flutter pub get 2>&1 | tee /tmp/pub_get.txt && cat /tmp/pub_get.txt | tail -30
 
       - name: Build APK (debug)
         run: |
