@@ -46,7 +46,7 @@ jobs:
           channel: 'stable'
 
       - name: Bootstrap Flutter project
-        run: flutter create --project-name audio_guide --org com.audioguide --platforms android .
+        run: flutter create --project-name audio_guide --org com.audioguide --platforms android . 2>&1 || (flutter create --project-name audio_guide --org com.audioguide --platforms android . --overwrite 2>&1 && echo "Created with overwrite")
 
       - name: Patch build.gradle.kts
         run: |
@@ -169,7 +169,7 @@ jobs:
         run: |
           echo "## Build errors" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          tail -150 build_output.txt >> $GITHUB_STEP_SUMMARY
+          [ -f build_output.txt ] && tail -150 build_output.txt >> $GITHUB_STEP_SUMMARY || echo "No build output file" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Upload APK
