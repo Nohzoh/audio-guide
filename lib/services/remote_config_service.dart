@@ -36,6 +36,7 @@ class RemoteConfig {
   final int progressSimulationIntervalMs;
   final String geminiTtsModel;
   final String geminiTtsVoice;
+  final int geminiThinkingBudget;
 
   const RemoteConfig({
     this.geminiModel = 'gemini-2.5-flash',
@@ -58,6 +59,7 @@ class RemoteConfig {
     this.progressSimulationIntervalMs = 150,
     this.geminiTtsModel = 'gemini-2.5-flash-preview-tts',
     this.geminiTtsVoice = 'Aoede',
+    this.geminiThinkingBudget = 512,
   });
 
   factory RemoteConfig.fromJson(Map<String, dynamic> json) {
@@ -105,6 +107,7 @@ class RemoteConfig {
     'progress_simulation_interval_ms': progressSimulationIntervalMs,
     'gemini_tts_model': geminiTtsModel,
     'gemini_tts_voice': geminiTtsVoice,
+    'gemini_thinking_budget': geminiThinkingBudget,
   };
 }
 
