@@ -3,7 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:provider/provider.dart';
+import '../services/audio_guide_service.dart';
 import '../services/history_service.dart';
+import 'package:provider/provider.dart';
+import '../services/audio_guide_service.dart';
 import '../services/tts_service.dart';
 
 class HistoryScreen extends StatelessWidget {
@@ -169,29 +173,34 @@ class HistoryDetailScreen extends StatefulWidget {
 }
 
 class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
-  final TtsService _tts = TtsService();
   bool _isPlaying = false;
+
+  // Use AudioGuideService TTS so same voice as first analysis
+  _getTts(BuildContext context) {
+    final guide = context.read<AudioGuideService>();
+    return guide.geminiTtsService ?? guide.ttsService;
+  }
 
   @override
   void initState() {
     super.initState();
-    _tts.onComplete = () => setState(() => _isPlaying = false);
   }
 
   @override
   void dispose() {
-    _tts.stop();
-    _tts.dispose();
     super.dispose();
   }
 
   Future<void> _toggleAudio() async {
     if (_isPlaying) {
-      await _tts.stop();
+      final tts = _getTts(context);
+      await tts.stop();
       setState(() => _isPlaying = false);
     } else {
       setState(() => _isPlaying = true);
-      await _tts.speak(widget.entry.script);
+      final tts = _getTts(context);
+      tts.onComplete = () => setState(() => _isPlaying = false);
+      await tts.speak(widget.entry.script);
     }
   }
 
