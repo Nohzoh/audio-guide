@@ -34,6 +34,8 @@ class RemoteConfig {
   // App
   final int timingHistorySize;
   final int progressSimulationIntervalMs;
+  final String geminiTtsModel;
+  final String geminiTtsVoice;
 
   const RemoteConfig({
     this.geminiModel = 'gemini-2.5-flash',
@@ -54,6 +56,8 @@ class RemoteConfig {
     this.imageQuality = 85,
     this.timingHistorySize = 5,
     this.progressSimulationIntervalMs = 150,
+    this.geminiTtsModel = 'gemini-2.5-flash-preview-tts',
+    this.geminiTtsVoice = 'Aoede',
   });
 
   factory RemoteConfig.fromJson(Map<String, dynamic> json) {
@@ -99,6 +103,8 @@ class RemoteConfig {
     'image_quality': imageQuality,
     'timing_history_size': timingHistorySize,
     'progress_simulation_interval_ms': progressSimulationIntervalMs,
+    'gemini_tts_model': geminiTtsModel,
+    'gemini_tts_voice': geminiTtsVoice,
   };
 }
 
