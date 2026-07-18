@@ -1,8 +1,10 @@
 import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../services/audio_guide_service.dart';
+import '../services/location_service.dart';
 
 class PlayerScreen extends StatefulWidget {
   final File imageFile;
@@ -146,7 +148,42 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                 ]),
                               ],
 
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 4),
+
+                              // Copy button
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: InkWell(
+                                  onTap: () {
+                                    Clipboard.setData(ClipboardData(
+                                        text: guide.lastResult!.script));
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Texte copié'),
+                                        duration: Duration(seconds: 2),
+                                      ),
+                                    );
+                                  },
+                                  child: const Padding(
+                                    padding: EdgeInsets.symmetric(
+                                        vertical: 4, horizontal: 2),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.copy,
+                                            size: 14, color: Colors.white38),
+                                        SizedBox(width: 4),
+                                        Text('Copier',
+                                            style: TextStyle(
+                                                color: Colors.white38,
+                                                fontSize: 12)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                              const SizedBox(height: 8),
 
                               // Scrollable script with reading progress bar
                               Expanded(
@@ -323,6 +360,9 @@ class _PipelineProgressWidget extends StatelessWidget {
           children: List.generate(steps.length, (i) {
             final isDone = i < progress.currentStep;
             final isActive = i == progress.currentStep;
+            // GPS step: yellow if done but not granted
+            final isGpsWarning = i == 0 && isDone &&
+                guide.lastLocationStatus != LocationPermissionStatus.granted;
             return Expanded(
               child: Row(
                 children: [
@@ -331,6 +371,7 @@ class _PipelineProgressWidget extends StatelessWidget {
                     label: steps[i].label,
                     isDone: isDone,
                     isActive: isActive,
+                    isWarning: isGpsWarning,
                     progress: isActive
                         ? progress.stepProgress
                         : (isDone ? 1.0 : 0.0),
@@ -365,6 +406,7 @@ class _StepDot extends StatelessWidget {
   final String label;
   final bool isDone;
   final bool isActive;
+  final bool isWarning;
   final double progress;
 
   const _StepDot({
@@ -373,6 +415,7 @@ class _StepDot extends StatelessWidget {
     required this.isDone,
     required this.isActive,
     required this.progress,
+    this.isWarning = false,
   });
 
   @override
@@ -392,18 +435,20 @@ class _StepDot extends StatelessWidget {
                   value: progress < 0 ? null : value,
                   strokeWidth: 2,
                   backgroundColor: Colors.white12,
-                  color: isDone ? Colors.greenAccent : Colors.white,
+                  color: isWarning ? Colors.orange : (isDone ? Colors.greenAccent : Colors.white),
                 ),
               ),
             ),
             Icon(
               isDone ? Icons.check : icon,
               size: 16,
-              color: isDone
-                  ? Colors.greenAccent
-                  : isActive
-                      ? Colors.white
-                      : Colors.white38,
+              color: isWarning
+                  ? Colors.orange
+                  : isDone
+                      ? Colors.greenAccent
+                      : isActive
+                          ? Colors.white
+                          : Colors.white38,
             ),
           ],
         ),
@@ -412,11 +457,13 @@ class _StepDot extends StatelessWidget {
           label,
           style: TextStyle(
             fontSize: 10,
-            color: isDone
-                ? Colors.greenAccent
-                : isActive
-                    ? Colors.white
-                    : Colors.white38,
+            color: isWarning
+                ? Colors.orange
+                : isDone
+                    ? Colors.greenAccent
+                    : isActive
+                        ? Colors.white
+                        : Colors.white38,
           ),
         ),
       ],
@@ -474,3 +521,4 @@ class _StateLabel extends StatelessWidget {
     };
   }
 }
+
