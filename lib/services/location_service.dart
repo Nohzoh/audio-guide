@@ -51,6 +51,23 @@ class LocationService {
     }
   }
 
+  /// Build LocationResult from known coordinates (e.g. from EXIF)
+  static Future<LocationResult> fromCoordinates(double lat, double lon) async {
+    final geo = await _reverseGeocode(lat, lon);
+    return LocationResult(
+      status: LocationPermissionStatus.granted,
+      info: LocationInfo(
+        latitude: lat,
+        longitude: lon,
+        city: _extractCity(geo?['address']),
+        road: geo?['address']?['road'] as String?,
+        neighbourhood: geo?['address']?['neighbourhood'] as String?
+            ?? geo?['address']?['suburb'] as String?,
+        country: geo?['address']?['country'] as String?,
+      ),
+    );
+  }
+
   static Future<LocationResult> getCurrentLocation() async {
     try {
       final result = await _channel.invokeMethod<Map>('requestLocation');
