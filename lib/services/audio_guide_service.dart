@@ -9,6 +9,7 @@ import 'anthropic_service.dart';
 import 'tts_service.dart';
 import 'gemini_tts_service.dart';
 import 'location_service.dart';
+import 'exif_location_service.dart';
 import 'wikipedia_service.dart';
 import 'history_service.dart';
 
@@ -212,7 +213,15 @@ class AudioGuideService extends ChangeNotifier {
       notifyListeners();
 
       final gpsStart = DateTime.now();
-      final locationResult = await LocationService.getCurrentLocation();
+      // Check EXIF GPS first — if image has coordinates, use those
+      LocationResult locationResult;
+      final exifCoords = await ExifLocationService.readGpsFromImage(imageFile);
+      if (exifCoords != null) {
+        locationResult = await LocationService.fromCoordinates(
+            exifCoords.lat, exifCoords.lon);
+      } else {
+        locationResult = await LocationService.getCurrentLocation();
+      }
       _gpsDurations.add(DateTime.now().difference(gpsStart).inMilliseconds / 1000.0);
       if (_gpsDurations.length > 5) _gpsDurations.removeAt(0);
       _lastLocationStatus = locationResult.status;
