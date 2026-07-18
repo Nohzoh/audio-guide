@@ -71,12 +71,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     setState(() => _permissionStatus = guide.lastLocationStatus);
 
     if (result != null) {
-      await history.addEntry(
+      final entry = await history.addEntry(
         imagePath: imageFile.path,
         title: result.title,
         script: result.script,
         locationName: result.locationName,
       );
+      // Save generated audio so replay doesn't regenerate
+      final audioPath = guide.lastAudioPath;
+      if (audioPath != null && entry.id != null) {
+        await history.saveAudioPath(entry.id!, audioPath);
+      }
     }
   }
 
