@@ -6,6 +6,7 @@ import 'gemini_nano_service.dart';
 import 'gemini_api_service.dart';
 import 'anthropic_service.dart';
 import 'tts_service.dart';
+import 'gemini_tts_service.dart';
 import 'location_service.dart';
 import 'wikipedia_service.dart';
 
@@ -29,6 +30,7 @@ class PipelineProgress {
 class AudioGuideService extends ChangeNotifier {
   final TtsService _ttsService = TtsService();
   TtsService get ttsService => _ttsService;
+  GeminiTtsService? _geminiTtsService;
 
   final GeminiNanoService _nanoService = GeminiNanoService();
 
@@ -152,6 +154,7 @@ class AudioGuideService extends ChangeNotifier {
 
   Future<void> setGeminiApiKey(String key) async {
     _geminiApiKey = key.isEmpty ? null : key;
+    _geminiTtsService = key.isNotEmpty ? GeminiTtsService(apiKey: key) : null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('gemini_api_key', key);
     // Auto-switch to Gemini API if key provided
@@ -171,6 +174,9 @@ class AudioGuideService extends ChangeNotifier {
   Future<void> _loadPreferences() async {
     final prefs = await SharedPreferences.getInstance();
     _geminiApiKey = prefs.getString('gemini_api_key');
+    if (_geminiApiKey?.isNotEmpty == true) {
+      _geminiTtsService = GeminiTtsService(apiKey: _geminiApiKey!);
+    }
     final providerName = prefs.getString('active_provider');
     if (providerName != null) {
       _activeProvider = AIProvider.values.firstWhere(
@@ -254,7 +260,13 @@ class AudioGuideService extends ChangeNotifier {
       _stepProgress = -1.0;
       notifyListeners();
 
-      await _ttsService.speak(_lastResult!.script);
+      final tts = _geminiTtsService;
+      if (tts != null) {
+        tts.onComplete = _ttsService.onComplete;
+        await tts.speak(_lastResult!.script);
+      } else {
+        await _ttsService.speak(_lastResult!.script);
+      }
 
       final prefs = await SharedPreferences.getInstance();
       prefs.setStringList('timing_gps', _gpsDurations.map((d) => d.toString()).toList());
