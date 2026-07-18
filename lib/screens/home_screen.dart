@@ -294,38 +294,69 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             ],
                           ),
                           const SizedBox(height: 10),
-                          SizedBox(
-                            height: 80,
-                            child: ListView.builder(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: history.entries.take(5).length,
-                              itemBuilder: (context, i) {
-                                final entry = history.entries[i];
-                                return GestureDetector(
-                                  onTap: () => Navigator.push(context,
-                                    MaterialPageRoute(
-                                      builder: (_) =>
-                                          HistoryDetailScreen(entry: entry),
-                                    ),
-                                  ),
-                                  child: Container(
-                                    width: 80,
-                                    margin: const EdgeInsets.only(right: 8),
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(10),
-                                      color: theme.colorScheme
-                                          .surfaceContainerHigh,
-                                    ),
-                                    clipBehavior: Clip.antiAlias,
-                                    child: File(entry.imagePath).existsSync()
-                                        ? Image.file(File(entry.imagePath),
-                                            fit: BoxFit.cover)
-                                        : const Icon(Icons.image,
-                                            color: Colors.white24),
-                                  ),
-                                );
-                              },
+                          GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 3,
+                              crossAxisSpacing: 8,
+                              mainAxisSpacing: 8,
+                              childAspectRatio: 1.0,
                             ),
+                            itemCount: history.entries.take(6).length,
+                            itemBuilder: (context, i) {
+                              final entry = history.entries[i];
+                              return GestureDetector(
+                                onTap: () => Navigator.push(context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        HistoryDetailScreen(entry: entry),
+                                  ),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Stack(
+                                    fit: StackFit.expand,
+                                    children: [
+                                      File(entry.imagePath).existsSync()
+                                          ? Image.file(File(entry.imagePath),
+                                              fit: BoxFit.cover)
+                                          : Container(
+                                              color: theme.colorScheme.surfaceContainerHigh,
+                                              child: const Icon(Icons.image,
+                                                  color: Colors.white24)),
+                                      // Title overlay at bottom
+                                      Positioned(
+                                        bottom: 0, left: 0, right: 0,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(4),
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(
+                                              begin: Alignment.bottomCenter,
+                                              end: Alignment.topCenter,
+                                              colors: [
+                                                Colors.black.withOpacity(0.7),
+                                                Colors.transparent,
+                                              ],
+                                            ),
+                                          ),
+                                          child: Text(
+                                            entry.title,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 9,
+                                              height: 1.2,
+                                            ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         ],
                       ),
@@ -374,3 +405,4 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 }
+
