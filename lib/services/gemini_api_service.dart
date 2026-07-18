@@ -121,20 +121,23 @@ class GeminiApiService implements AIService {
   }
   String _cleanMarkdown(String text) {
     var result = text
-        // Remove bold/italic markers
         .replaceAll(RegExp(r'\*{1,3}'), '')
-        // Remove bullet points
         .replaceAll(RegExp(r'^\s*[-•]\s+', multiLine: true), '')
-        // Remove word count annotations like (23) (15)
         .replaceAll(RegExp(r'\s*\(\d+\)'), '')
-        // Remove headers
         .replaceAll(RegExp(r'^#{1,6}\s+', multiLine: true), '')
-        // Remove thinking preambles in English
-        .replaceAll(RegExp(r'^.*?(rough estimate|word count|paragraph \d|let\'s|okay|alright)[^\n]*\n',
-            multiLine: true, caseSensitive: false), '')
-        // Collapse multiple blank lines
         .replaceAll(RegExp(r'\n{3,}'), '\n\n')
         .trim();
-    return result;
+    // Remove English thinking preamble lines
+    final lines = result.split('\n');
+    final filtered = lines.where((line) {
+      final lower = line.toLowerCase();
+      return !lower.contains('rough estimate') &&
+             !lower.contains('word count') &&
+             !lower.startsWith("let's") &&
+             !lower.startsWith('okay,') &&
+             !lower.startsWith('alright,') &&
+             !RegExp(r'^paragraph \d', caseSensitive: false).hasMatch(lower);
+    }).toList();
+    return filtered.join('\n').trim();
   }
 }
