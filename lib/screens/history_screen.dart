@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -343,6 +344,40 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                       ],
 
                       const SizedBox(height: 16),
+
+                      // Copy button
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: InkWell(
+                          onTap: () {
+                            Clipboard.setData(
+                                ClipboardData(text: widget.entry.script));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Texte copié'),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          },
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(
+                                vertical: 4, horizontal: 2),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.copy,
+                                    size: 14, color: Colors.white54),
+                                SizedBox(width: 4),
+                                Text('Copier',
+                                    style: TextStyle(
+                                        color: Colors.white54,
+                                        fontSize: 12)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
 
                       // Script
                       Container(
