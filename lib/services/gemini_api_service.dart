@@ -78,6 +78,7 @@ class GeminiApiService implements AIService {
           'generationConfig': {
             'maxOutputTokens': cfg.geminiMaxTokens,
             'temperature': cfg.geminiTemperature,
+            'thinkingConfig': {'thinkingBudget': 1024, 'includeThoughts': false},
           },
         }),
       ).timeout(const Duration(seconds: 30));
