@@ -265,10 +265,16 @@ class AudioGuideService extends ChangeNotifier {
       _stepProgress = -1.0;
       notifyListeners();
 
-      final tts = _geminiTtsService;
-      if (tts != null) {
-        tts.onComplete = _ttsService.onComplete;
-        await tts.speak(_lastResult!.script);
+      final geminiTts = _geminiTtsService;
+      if (geminiTts != null) {
+        try {
+          geminiTts.onComplete = _ttsService.onComplete;
+          await geminiTts.speak(_lastResult!.script);
+        } catch (ttsError) {
+          // Gemini TTS failed — fall back to Piper
+          debugPrint('Gemini TTS failed, falling back to Piper: \$ttsError');
+          await _ttsService.speak(_lastResult!.script);
+        }
       } else {
         await _ttsService.speak(_lastResult!.script);
       }
