@@ -46,7 +46,7 @@ jobs:
           channel: 'stable'
 
       - name: Bootstrap Flutter project
-        run: flutter create --project-name audio_guide --org com.audioguide --platforms android . 2>&1 || (flutter create --project-name audio_guide --org com.audioguide --platforms android . --overwrite 2>&1 && echo "Created with overwrite")
+        run: flutter create --project-name audio_guide --org com.audioguide --platforms android . 2>&1 | head -20 || true
 
       - name: Patch build.gradle.kts
         run: |
