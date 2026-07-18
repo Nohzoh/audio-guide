@@ -2,8 +2,6 @@ import 'dart:io';
 import 'package:exif/exif.dart';
 
 class ExifLocationService {
-  /// Read GPS coordinates from image EXIF metadata
-  /// Returns null if no GPS data found
   static Future<({double lat, double lon})?> readGpsFromImage(File imageFile) async {
     try {
       final bytes = await imageFile.readAsBytes();
@@ -18,8 +16,8 @@ class ExifLocationService {
 
       if (latTag == null || lonTag == null) return null;
 
-      final lat = _parseGpsCoordinate(latTag.values);
-      final lon = _parseGpsCoordinate(lonTag.values);
+      final lat = _parseCoordinate(latTag.printable);
+      final lon = _parseCoordinate(lonTag.printable);
 
       if (lat == null || lon == null) return null;
 
@@ -32,21 +30,27 @@ class ExifLocationService {
     }
   }
 
-  static double? _parseGpsCoordinate(dynamic values) {
+  /// Parse GPS coordinate from EXIF printable string
+  /// Format: "[52, 21, 5443/100]" or "52/1, 21/1, 5443/100"
+  static double? _parseCoordinate(String? printable) {
+    if (printable == null) return null;
     try {
-      // EXIF GPS is stored as [degrees, minutes, seconds] as ratios
-      final list = values as IfdValues;
-      if (list.length < 3) return null;
+      // Remove brackets and split
+      final clean = printable.replaceAll('[', '').replaceAll(']', '');
+      final parts = clean.split(',').map((s) => s.trim()).toList();
+      if (parts.length < 3) return null;
 
-      double parse(dynamic v) {
-        if (v is IfdRatioValue) return v.numerator / v.denominator;
-        return (v as num).toDouble();
+      double parseRatio(String s) {
+        if (s.contains('/')) {
+          final nums = s.split('/');
+          return double.parse(nums[0]) / double.parse(nums[1]);
+        }
+        return double.parse(s);
       }
 
-      final degrees = parse(list.toList()[0]);
-      final minutes = parse(list.toList()[1]);
-      final seconds = parse(list.toList()[2]);
-
+      final degrees = parseRatio(parts[0]);
+      final minutes = parseRatio(parts[1]);
+      final seconds = parseRatio(parts[2]);
       return degrees + minutes / 60.0 + seconds / 3600.0;
     } catch (_) {
       return null;
