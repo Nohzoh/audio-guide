@@ -9,6 +9,7 @@ import 'tts_service.dart';
 import 'gemini_tts_service.dart';
 import 'location_service.dart';
 import 'wikipedia_service.dart';
+import 'history_service.dart';
 
 enum GuideState { idle, locating, analyzing, synthesizing, speaking, paused, error }
 enum AIProvider { geminiNano, geminiApi, anthropic }
@@ -32,6 +33,8 @@ class AudioGuideService extends ChangeNotifier {
   TtsService get ttsService => _ttsService;
   GeminiTtsService? _geminiTtsService;
   GeminiTtsService? get geminiTtsService => _geminiTtsService;
+  String? _lastAudioPath;
+  String? get lastAudioPath => _lastAudioPath;
 
   final GeminiNanoService _nanoService = GeminiNanoService();
 
@@ -268,6 +271,8 @@ class AudioGuideService extends ChangeNotifier {
       } else {
         await _ttsService.speak(_lastResult!.script);
       }
+      // Cache the generated audio for replay without re-generating
+      _lastAudioPath = await _getLastWavPath();
 
       final prefs = await SharedPreferences.getInstance();
       prefs.setStringList('timing_gps', _gpsDurations.map((d) => d.toString()).toList());
@@ -320,6 +325,17 @@ class AudioGuideService extends ChangeNotifier {
     await _ttsService.stop();
     _state = GuideState.idle;
     notifyListeners();
+  }
+
+  Future<String?> _getLastWavPath() async {
+    try {
+      final tmpDir = await getTemporaryDirectory();
+      final geminiWav = File('${tmpDir.path}/gemini_tts_output.wav');
+      if (await geminiWav.exists()) return geminiWav.path;
+      final piperWav = File('${tmpDir.path}/tts_output.wav');
+      if (await piperWav.exists()) return piperWav.path;
+    } catch (_) {}
+    return null;
   }
 
   @override
