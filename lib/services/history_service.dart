@@ -10,6 +10,7 @@ class HistoryEntry {
   final String title;
   final String script;
   final String? locationName;
+  final String? audioPath; // cached TTS audio
   final DateTime createdAt;
 
   const HistoryEntry({
@@ -18,8 +19,11 @@ class HistoryEntry {
     required this.title,
     required this.script,
     this.locationName,
+    this.audioPath,
     required this.createdAt,
   });
+
+  bool get hasAudio => audioPath != null && File(audioPath!).existsSync();
 
   Map<String, dynamic> toMap() => {
     if (id != null) 'id': id,
@@ -27,6 +31,7 @@ class HistoryEntry {
     'title': title,
     'script': script,
     'locationName': locationName,
+    'audioPath': audioPath,
     'createdAt': createdAt.toIso8601String(),
   };
 
@@ -36,7 +41,18 @@ class HistoryEntry {
     title: map['title'] as String,
     script: map['script'] as String,
     locationName: map['locationName'] as String?,
+    audioPath: map['audioPath'] as String?,
     createdAt: DateTime.parse(map['createdAt'] as String),
+  );
+
+  HistoryEntry copyWith({String? audioPath}) => HistoryEntry(
+    id: id,
+    imagePath: imagePath,
+    title: title,
+    script: script,
+    locationName: locationName,
+    audioPath: audioPath ?? this.audioPath,
+    createdAt: createdAt,
   );
 }
 
@@ -50,7 +66,7 @@ class HistoryService extends ChangeNotifier {
     final dbPath = await getDatabasesPath();
     _db = await openDatabase(
       join(dbPath, 'audio_guide_history.db'),
-      version: 1,
+      version: 2,
       onCreate: (db, version) {
         return db.execute('''
           CREATE TABLE history(
@@ -59,19 +75,23 @@ class HistoryService extends ChangeNotifier {
             title TEXT NOT NULL,
             script TEXT NOT NULL,
             locationName TEXT,
+            audioPath TEXT,
             createdAt TEXT NOT NULL
           )
         ''');
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute(
+              'ALTER TABLE history ADD COLUMN audioPath TEXT');
+        }
       },
     );
     await _loadEntries();
   }
 
   Future<void> _loadEntries() async {
-    final maps = await _db!.query(
-      'history',
-      orderBy: 'createdAt DESC',
-    );
+    final maps = await _db!.query('history', orderBy: 'createdAt DESC');
     _entries = maps.map(HistoryEntry.fromMap).toList();
     notifyListeners();
   }
@@ -82,7 +102,6 @@ class HistoryService extends ChangeNotifier {
     required String script,
     String? locationName,
   }) async {
-    // Copy image to permanent storage
     final permanentPath = await _copyImageToPermanentStorage(imagePath);
 
     final entry = HistoryEntry(
@@ -108,12 +127,42 @@ class HistoryService extends ChangeNotifier {
     return saved;
   }
 
+  /// Save generated audio file path for an entry
+  Future<void> saveAudioPath(int entryId, String sourcePath) async {
+    // Copy WAV to permanent storage
+    final dir = await getApplicationDocumentsDirectory();
+    final audioDir = Directory('${dir.path}/history_audio');
+    if (!await audioDir.exists()) await audioDir.create();
+
+    final fileName = 'audio_$entryId.wav';
+    final destPath = '${audioDir.path}/$fileName';
+    await File(sourcePath).copy(destPath);
+
+    // Update DB
+    await _db!.update(
+      'history',
+      {'audioPath': destPath},
+      where: 'id = ?',
+      whereArgs: [entryId],
+    );
+
+    // Update in-memory
+    final idx = _entries.indexWhere((e) => e.id == entryId);
+    if (idx != -1) {
+      _entries[idx] = _entries[idx].copyWith(audioPath: destPath);
+      notifyListeners();
+    }
+  }
+
   Future<void> deleteEntry(int id) async {
     final entry = _entries.firstWhere((e) => e.id == id);
-    // Delete image file
     try {
-      final file = File(entry.imagePath);
-      if (await file.exists()) await file.delete();
+      if (await File(entry.imagePath).exists()) {
+        await File(entry.imagePath).delete();
+      }
+      if (entry.audioPath != null && await File(entry.audioPath!).exists()) {
+        await File(entry.audioPath!).delete();
+      }
     } catch (_) {}
 
     await _db!.delete('history', where: 'id = ?', whereArgs: [id]);
