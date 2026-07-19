@@ -400,6 +400,43 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
 
                       const SizedBox(height: 20),
 
+                      // Upgrade TTS button
+                      if (widget.entry.hasLowQualityTts)
+                        Consumer<AudioGuideService>(
+                          builder: (context, guide, _) {
+                            if (guide.geminiTtsService == null) return const SizedBox.shrink();
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: OutlinedButton.icon(
+                                icon: const Icon(Icons.auto_awesome, size: 16),
+                                label: const Text('Améliorer la voix'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.amber,
+                                  side: const BorderSide(color: Colors.amber),
+                                  minimumSize: const Size(double.infinity, 40),
+                                ),
+                                onPressed: () async {
+                                  final history = context.read<HistoryService>();
+                                  try {
+                                    final tts = guide.geminiTtsService!;
+                                    tts.onComplete = () => setState(() => _isPlaying = false);
+                                    setState(() => _isPlaying = true);
+                                    await tts.speak(widget.entry.script);
+                                    final tmpDir = await getTemporaryDirectory();
+                                    final wavPath = '\${tmpDir.path}/gemini_tts_output.wav';
+                                    if (File(wavPath).existsSync() && widget.entry.id != null) {
+                                      await history.saveAudioPath(
+                                        widget.entry.id!, wavPath, ttsModel: 'gemini-tts');
+                                    }
+                                  } catch (_) {
+                                    setState(() => _isPlaying = false);
+                                  }
+                                },
+                              ),
+                            );
+                          },
+                        ),
+
                       // Play button
                       FilledButton.icon(
                         onPressed: _toggleAudio,
