@@ -83,7 +83,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       );
       final audioPath = guide.lastAudioPath;
       if (audioPath != null) {
-        await history.saveAudioPath(pendingEntry.id!, audioPath);
+        await history.saveAudioPath(pendingEntry.id!, audioPath, ttsModel: guide.lastTtsModel);
       }
     } else if (result == null && pendingEntry.id != null) {
       await history.failEntry(pendingEntry.id!);
@@ -143,7 +143,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       );
       final audioPath = guide.lastAudioPath;
       if (audioPath != null) {
-        await history.saveAudioPath(entry.id!, audioPath);
+        await history.saveAudioPath(entry.id!, audioPath, ttsModel: guide.lastTtsModel);
       }
     } else if (result == null && entry.id != null) {
       await history.failEntry(entry.id!);
