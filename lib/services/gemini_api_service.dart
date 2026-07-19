@@ -118,12 +118,28 @@ class GeminiApiService implements AIService {
       throw Exception('Gemini API reponse vide');
     }
 
-    final firstSentence = text.split(RegExp(r'[.!?]')).first.trim();
-    final title = firstSentence.length > 60
-        ? '${firstSentence.substring(0, 60)}...'
-        : firstSentence;
+    // Try JSON response {title, script}
+    String title;
+    String script;
+    try {
+      final jsonStart = text.indexOf('{');
+      final jsonEnd = text.lastIndexOf('}');
+      if (jsonStart != -1 && jsonEnd != -1) {
+        final parsed = jsonDecode(text.substring(jsonStart, jsonEnd + 1)) as Map<String, dynamic>;
+        title = (parsed['title'] as String? ?? '').trim();
+        script = _cleanMarkdown((parsed['script'] as String? ?? text).trim());
+        if (title.isEmpty) throw const FormatException('empty title');
+      } else {
+        throw const FormatException('no JSON');
+      }
+    } catch (_) {
+      final cleaned = _cleanMarkdown(text);
+      final first = cleaned.split(RegExp(r'[.!?]')).first.trim();
+      title = first.length > 60 ? '${first.substring(0, 60)}...' : first;
+      script = cleaned;
+    }
 
-    return AudioGuideResult(title: title, script: text);
+    return AudioGuideResult(title: title, script: script);
   }
   String _cleanMarkdown(String text) {
     var result = text
