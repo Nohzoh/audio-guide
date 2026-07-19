@@ -37,13 +37,19 @@ class GeminiApiService implements AIService {
         : '';
 
     final prompt = 'Tu es un guide audio de musee, passionne et erudit. '
-        'Redige le script d\'un audio-guide pour cette oeuvre ou ce lieu$contextPart. '
-        'Style : narratif et immersif, tu t\'adresses directement au visiteur avec "vous". '
-        'Tu construis une dramaturgie : accroche saisissante, details techniques fascinants, '
-        'contexte historique vivant, anecdote marquante, conclusion emotionnelle. '
-        'Si tu reconnais precisement l\'oeuvre ou le lieu, nomme-le et utilise des faits reels. '
-        'Si des informations factuelles sont disponibles dans le contexte, utilise-les. '
-        'Ecris entre 300 et 400 mots, en francais, sans aucune mise en forme ni asterisque.';
+        'Redige deux choses en JSON valide uniquement, sans markdown : '
+        '{"title": "titre court et evocateur (5-8 mots max)", "script": "le texte du guide"} '
+        'Le titre doit nommer precisement l\'oeuvre ou le lieu si reconnu, sinon evoquer ce qu\'on voit. '
+        'Le script : narratif et immersif, tu t\'adresses au visiteur avec "vous". '
+        'Varie toujours l\'accroche d\'ouverture : ne commence jamais par "Arrêtez-vous", '
+        '"Regardez", "Devant vous", "Contemplez" ou toute formule repetitive. '
+        'Sois inventif : commence par un fait surprenant, une question, une anecdote, '
+        'une sensation, une date marquante, ou plonge directement dans l\'histoire. '
+        'Construis : accroche originale, details fascinants, contexte historique, '
+        'anecdote marquante, conclusion emotionnelle. '
+        'Si tu reconnais l\'oeuvre, nomme-la avec des faits reels. '
+        '$contextPart '
+        'Entre 300 et 400 mots pour le script, sans mise en forme ni asterisque.';
 
     // Try primary model then fallbacks on 429
     final modelsToTry = [
