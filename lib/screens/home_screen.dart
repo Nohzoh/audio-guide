@@ -7,6 +7,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../services/audio_guide_service.dart';
 import '../services/settings_service.dart';
 import '../services/history_service.dart';
+import 'dart:io';
 import '../services/location_service.dart';
 import 'player_screen.dart';
 import 'history_screen.dart';
@@ -62,27 +63,30 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     final imageFile = File(xFile.path);
 
+    // Create pending entry immediately — visible in gallery during analysis
+    final pendingEntry = await history.addPendingEntry(imagePath: imageFile.path);
+
     Navigator.push(context, MaterialPageRoute(
       builder: (_) => PlayerScreen(imageFile: imageFile),
     ));
 
     final result = await guide.analyzeAndPlay(imageFile);
 
-    // Update permission status after analysis
     setState(() => _permissionStatus = guide.lastLocationStatus);
 
-    if (result != null) {
-      final entry = await history.addEntry(
-        imagePath: imageFile.path,
+    if (result != null && pendingEntry.id != null) {
+      await history.completeEntry(
+        entryId: pendingEntry.id!,
         title: result.title,
         script: result.script,
         locationName: result.locationName,
       );
-      // Save generated audio so replay doesn't regenerate
       final audioPath = guide.lastAudioPath;
-      if (audioPath != null && entry.id != null) {
-        await history.saveAudioPath(entry.id!, audioPath);
+      if (audioPath != null) {
+        await history.saveAudioPath(pendingEntry.id!, audioPath);
       }
+    } else if (result == null && pendingEntry.id != null) {
+      await history.failEntry(pendingEntry.id!);
     }
   }
 
@@ -110,6 +114,40 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ],
       ),
     );
+  }
+
+  Future<void> _retryAnalysis(HistoryEntry entry) async {
+    final guide = context.read<AudioGuideService>();
+    final history = context.read<HistoryService>();
+
+    final imageFile = File(entry.imagePath);
+    if (!imageFile.existsSync()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Image introuvable')),
+      );
+      return;
+    }
+
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => PlayerScreen(imageFile: imageFile),
+    ));
+
+    final result = await guide.analyzeAndPlay(imageFile);
+
+    if (result != null && entry.id != null) {
+      await history.completeEntry(
+        entryId: entry.id!,
+        title: result.title,
+        script: result.script,
+        locationName: result.locationName,
+      );
+      final audioPath = guide.lastAudioPath;
+      if (audioPath != null) {
+        await history.saveAudioPath(entry.id!, audioPath);
+      }
+    } else if (result == null && entry.id != null) {
+      await history.failEntry(entry.id!);
+    }
   }
 
   Future<void> _showImageSourceDialog() async {
@@ -348,26 +386,49 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             itemCount: history.entries.take(6).length,
                             itemBuilder: (context, i) {
                               final entry = history.entries[i];
+                              final isPending = entry.isPending;
+                              final isFailed = entry.status == AnalysisStatus.failed;
                               return GestureDetector(
-                                onTap: () => Navigator.push(context,
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                        HistoryDetailScreen(entry: entry),
-                                  ),
-                                ),
+                                onTap: () {
+                                  if (isPending || isFailed) {
+                                    // Retry analysis
+                                    _retryAnalysis(entry);
+                                  } else {
+                                    Navigator.push(context,
+                                      MaterialPageRoute(
+                                        builder: (_) => HistoryDetailScreen(entry: entry),
+                                      ),
+                                    );
+                                  }
+                                },
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(10),
                                   child: Stack(
                                     fit: StackFit.expand,
                                     children: [
-                                      File(entry.imagePath).existsSync()
-                                          ? Image.file(File(entry.imagePath),
-                                              fit: BoxFit.cover)
-                                          : Container(
-                                              color: theme.colorScheme.surfaceContainerHigh,
-                                              child: const Icon(Icons.image,
-                                                  color: Colors.white24)),
-                                      // Title overlay at bottom
+                                      // Image — greyed if pending/failed
+                                      ColorFiltered(
+                                        colorFilter: (isPending || isFailed)
+                                            ? const ColorFilter.matrix([
+                                                0.2126, 0.7152, 0.0722, 0, 0,
+                                                0.2126, 0.7152, 0.0722, 0, 0,
+                                                0.2126, 0.7152, 0.0722, 0, 0,
+                                                0,      0,      0,      1, 0,
+                                              ])
+                                            : const ColorFilter.mode(
+                                                Colors.transparent,
+                                                BlendMode.multiply),
+                                        child: File(entry.imagePath).existsSync()
+                                            ? Image.file(File(entry.imagePath), fit: BoxFit.cover)
+                                            : Container(color: theme.colorScheme.surfaceContainerHigh),
+                                      ),
+                                      // Status overlay
+                                      if (isPending)
+                                        const Center(child: SizedBox(width: 24, height: 24,
+                                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white70)))
+                                      else if (isFailed)
+                                        const Center(child: Icon(Icons.refresh, color: Colors.white, size: 28)),
+                                      // Title at bottom
                                       Positioned(
                                         bottom: 0, left: 0, right: 0,
                                         child: Container(
@@ -376,18 +437,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                             gradient: LinearGradient(
                                               begin: Alignment.bottomCenter,
                                               end: Alignment.topCenter,
-                                              colors: [
-                                                Colors.black.withOpacity(0.7),
-                                                Colors.transparent,
-                                              ],
+                                              colors: [Colors.black.withOpacity(0.7), Colors.transparent],
                                             ),
                                           ),
                                           child: Text(
-                                            entry.title,
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 9,
-                                              height: 1.2,
+                                            isFailed ? 'Appuyer pour réessayer' : entry.title,
+                                            style: TextStyle(
+                                              color: isFailed ? Colors.orangeAccent : Colors.white,
+                                              fontSize: 9, height: 1.2,
                                             ),
                                             maxLines: 2,
                                             overflow: TextOverflow.ellipsis,
@@ -447,4 +504,5 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 }
+
 
