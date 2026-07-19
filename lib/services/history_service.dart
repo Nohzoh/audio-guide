@@ -15,6 +15,7 @@ class HistoryEntry {
   final String? audioPath;
   final DateTime createdAt;
   final AnalysisStatus status;
+  final String? ttsModel; // e.g. "gemini-tts", "piper"
 
   const HistoryEntry({
     this.id,
@@ -25,10 +26,12 @@ class HistoryEntry {
     this.audioPath,
     required this.createdAt,
     this.status = AnalysisStatus.complete,
+    this.ttsModel,
   });
 
   bool get hasAudio => audioPath != null && File(audioPath!).existsSync();
   bool get isPending => status == AnalysisStatus.pending;
+  bool get hasLowQualityTts => ttsModel == "piper" && audioPath != null;
 
   Map<String, dynamic> toMap() => {
     if (id != null) 'id': id,
@@ -39,6 +42,7 @@ class HistoryEntry {
     'audioPath': audioPath,
     'createdAt': createdAt.toIso8601String(),
     'status': status.name,
+    'ttsModel': ttsModel,
   };
 
   factory HistoryEntry.fromMap(Map<String, dynamic> map) => HistoryEntry(
@@ -49,13 +53,14 @@ class HistoryEntry {
     locationName: map['locationName'] as String?,
     audioPath: map['audioPath'] as String?,
     createdAt: DateTime.parse(map['createdAt'] as String),
+    ttsModel: map['ttsModel'] as String?,
     status: AnalysisStatus.values.firstWhere(
       (s) => s.name == (map['status'] as String? ?? 'complete'),
       orElse: () => AnalysisStatus.complete,
     ),
   );
 
-  HistoryEntry copyWith({String? audioPath, AnalysisStatus? status}) => HistoryEntry(
+  HistoryEntry copyWith({String? audioPath, AnalysisStatus? status, String? ttsModel}) => HistoryEntry(
     id: id,
     imagePath: imagePath,
     title: title,
@@ -64,6 +69,7 @@ class HistoryEntry {
     audioPath: audioPath ?? this.audioPath,
     createdAt: createdAt,
     status: status ?? this.status,
+    ttsModel: ttsModel ?? this.ttsModel,
   );
 }
 
@@ -77,7 +83,7 @@ class HistoryService extends ChangeNotifier {
     final dbPath = await getDatabasesPath();
     _db = await openDatabase(
       join(dbPath, 'audio_guide_history.db'),
-      version: 3,
+      version: 4,
       onCreate: (db, version) {
         return db.execute('''
           CREATE TABLE history(
@@ -88,6 +94,7 @@ class HistoryService extends ChangeNotifier {
             locationName TEXT,
             audioPath TEXT,
             status TEXT NOT NULL DEFAULT 'complete',
+            ttsModel TEXT,
             createdAt TEXT NOT NULL
           )
         ''');
@@ -98,6 +105,9 @@ class HistoryService extends ChangeNotifier {
         }
         if (oldVersion < 3) {
           await db.execute("ALTER TABLE history ADD COLUMN status TEXT NOT NULL DEFAULT 'complete'");
+        }
+        if (oldVersion < 4) {
+          await db.execute('ALTER TABLE history ADD COLUMN ttsModel TEXT');
         }
       },
     );
@@ -217,7 +227,7 @@ class HistoryService extends ChangeNotifier {
   }
 
   /// Save generated audio file path for an entry
-  Future<void> saveAudioPath(int entryId, String sourcePath) async {
+  Future<void> saveAudioPath(int entryId, String sourcePath, {String? ttsModel}) async {
     // Copy WAV to permanent storage
     final dir = await getApplicationDocumentsDirectory();
     final audioDir = Directory('${dir.path}/history_audio');
@@ -230,7 +240,7 @@ class HistoryService extends ChangeNotifier {
     // Update DB
     await _db!.update(
       'history',
-      {'audioPath': destPath},
+      {'audioPath': destPath, if (ttsModel != null) 'ttsModel': ttsModel},
       where: 'id = ?',
       whereArgs: [entryId],
     );
@@ -238,7 +248,7 @@ class HistoryService extends ChangeNotifier {
     // Update in-memory
     final idx = _entries.indexWhere((e) => e.id == entryId);
     if (idx != -1) {
-      _entries[idx] = _entries[idx].copyWith(audioPath: destPath);
+      _entries[idx] = _entries[idx].copyWith(audioPath: destPath, ttsModel: ttsModel);
       notifyListeners();
     }
   }
