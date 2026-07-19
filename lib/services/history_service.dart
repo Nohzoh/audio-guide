@@ -4,14 +4,17 @@ import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
+enum AnalysisStatus { complete, pending, failed }
+
 class HistoryEntry {
   final int? id;
   final String imagePath;
   final String title;
   final String script;
   final String? locationName;
-  final String? audioPath; // cached TTS audio
+  final String? audioPath;
   final DateTime createdAt;
+  final AnalysisStatus status;
 
   const HistoryEntry({
     this.id,
@@ -21,9 +24,11 @@ class HistoryEntry {
     this.locationName,
     this.audioPath,
     required this.createdAt,
+    this.status = AnalysisStatus.complete,
   });
 
   bool get hasAudio => audioPath != null && File(audioPath!).existsSync();
+  bool get isPending => status == AnalysisStatus.pending;
 
   Map<String, dynamic> toMap() => {
     if (id != null) 'id': id,
@@ -33,6 +38,7 @@ class HistoryEntry {
     'locationName': locationName,
     'audioPath': audioPath,
     'createdAt': createdAt.toIso8601String(),
+    'status': status.name,
   };
 
   factory HistoryEntry.fromMap(Map<String, dynamic> map) => HistoryEntry(
@@ -43,9 +49,13 @@ class HistoryEntry {
     locationName: map['locationName'] as String?,
     audioPath: map['audioPath'] as String?,
     createdAt: DateTime.parse(map['createdAt'] as String),
+    status: AnalysisStatus.values.firstWhere(
+      (s) => s.name == (map['status'] as String? ?? 'complete'),
+      orElse: () => AnalysisStatus.complete,
+    ),
   );
 
-  HistoryEntry copyWith({String? audioPath}) => HistoryEntry(
+  HistoryEntry copyWith({String? audioPath, AnalysisStatus? status}) => HistoryEntry(
     id: id,
     imagePath: imagePath,
     title: title,
@@ -53,6 +63,7 @@ class HistoryEntry {
     locationName: locationName,
     audioPath: audioPath ?? this.audioPath,
     createdAt: createdAt,
+    status: status ?? this.status,
   );
 }
 
@@ -66,7 +77,7 @@ class HistoryService extends ChangeNotifier {
     final dbPath = await getDatabasesPath();
     _db = await openDatabase(
       join(dbPath, 'audio_guide_history.db'),
-      version: 2,
+      version: 3,
       onCreate: (db, version) {
         return db.execute('''
           CREATE TABLE history(
@@ -76,14 +87,17 @@ class HistoryService extends ChangeNotifier {
             script TEXT NOT NULL,
             locationName TEXT,
             audioPath TEXT,
+            status TEXT NOT NULL DEFAULT 'complete',
             createdAt TEXT NOT NULL
           )
         ''');
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
-          await db.execute(
-              'ALTER TABLE history ADD COLUMN audioPath TEXT');
+          await db.execute('ALTER TABLE history ADD COLUMN audioPath TEXT');
+        }
+        if (oldVersion < 3) {
+          await db.execute("ALTER TABLE history ADD COLUMN status TEXT NOT NULL DEFAULT 'complete'");
         }
       },
     );
@@ -94,6 +108,81 @@ class HistoryService extends ChangeNotifier {
     final maps = await _db!.query('history', orderBy: 'createdAt DESC');
     _entries = maps.map(HistoryEntry.fromMap).toList();
     notifyListeners();
+  }
+
+  /// Add a pending entry immediately when photo is taken
+  /// so it appears in gallery even before analysis completes
+  Future<HistoryEntry> addPendingEntry({required String imagePath}) async {
+    final permanentPath = await _copyImageToPermanentStorage(imagePath);
+    final entry = HistoryEntry(
+      imagePath: permanentPath,
+      title: 'Analyse en attente...',
+      script: '',
+      createdAt: DateTime.now(),
+      status: AnalysisStatus.pending,
+    );
+    final id = await _db!.insert('history', entry.toMap());
+    final saved = entry.copyWith(status: AnalysisStatus.pending);
+    final withId = HistoryEntry(
+      id: id,
+      imagePath: permanentPath,
+      title: 'Analyse en attente...',
+      script: '',
+      createdAt: entry.createdAt,
+      status: AnalysisStatus.pending,
+    );
+    _entries.insert(0, withId);
+    notifyListeners();
+    return withId;
+  }
+
+  /// Update a pending entry with completed analysis result
+  Future<void> completeEntry({
+    required int entryId,
+    required String title,
+    required String script,
+    String? locationName,
+  }) async {
+    await _db!.update(
+      'history',
+      {
+        'title': title,
+        'script': script,
+        'locationName': locationName,
+        'status': AnalysisStatus.complete.name,
+      },
+      where: 'id = ?',
+      whereArgs: [entryId],
+    );
+    final idx = _entries.indexWhere((e) => e.id == entryId);
+    if (idx != -1) {
+      _entries[idx] = HistoryEntry(
+        id: entryId,
+        imagePath: _entries[idx].imagePath,
+        title: title,
+        script: script,
+        locationName: locationName,
+        audioPath: _entries[idx].audioPath,
+        createdAt: _entries[idx].createdAt,
+        status: AnalysisStatus.complete,
+      );
+      notifyListeners();
+    }
+  }
+
+  /// Mark a pending entry as failed
+  Future<void> failEntry(int entryId) async {
+    await _db!.update(
+      'history',
+      {'status': AnalysisStatus.failed.name, 'title': 'Analyse échouée'},
+      where: 'id = ?',
+      whereArgs: [entryId],
+    );
+    final idx = _entries.indexWhere((e) => e.id == entryId);
+    if (idx != -1) {
+      _entries[idx] = _entries[idx].copyWith(status: AnalysisStatus.failed);
+      notifyListeners();
+    }
   }
 
   Future<HistoryEntry> addEntry({
@@ -187,3 +276,4 @@ class HistoryService extends ChangeNotifier {
     super.dispose();
   }
 }
+
