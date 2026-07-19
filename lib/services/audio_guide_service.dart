@@ -37,6 +37,8 @@ class AudioGuideService extends ChangeNotifier {
   GeminiTtsService? get geminiTtsService => _geminiTtsService;
   String? _lastAudioPath;
   String? get lastAudioPath => _lastAudioPath;
+  String _lastTtsModel = "piper";
+  String get lastTtsModel => _lastTtsModel;
 
   final GeminiNanoService _nanoService = GeminiNanoService();
 
