@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:gal/gal.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -346,37 +347,55 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
 
                       const SizedBox(height: 16),
 
-                      // Copy button
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: InkWell(
-                          onTap: () {
-                            Clipboard.setData(
-                                ClipboardData(text: widget.entry.script));
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Texte copié'),
-                                duration: Duration(seconds: 2),
-                              ),
-                            );
-                          },
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(
-                                vertical: 4, horizontal: 2),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.copy,
-                                    size: 14, color: Colors.white54),
+                      // Action buttons
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          // Save to gallery
+                          InkWell(
+                            onTap: () async {
+                              try {
+                                await Gal.putImage(widget.entry.imagePath);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Photo sauvegardée dans la galerie'),
+                                      duration: Duration(seconds: 2),
+                                    ),
+                                  );
+                                }
+                              } catch (_) {}
+                            },
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                Icon(Icons.save_alt, size: 14, color: Colors.white54),
                                 SizedBox(width: 4),
-                                Text('Copier',
-                                    style: TextStyle(
-                                        color: Colors.white54,
-                                        fontSize: 12)),
-                              ],
+                                Text('Sauvegarder', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                              ]),
                             ),
                           ),
-                        ),
+                          // Copy button
+                          InkWell(
+                            onTap: () {
+                              Clipboard.setData(ClipboardData(text: widget.entry.script));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Texte copié'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            },
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                Icon(Icons.copy, size: 14, color: Colors.white54),
+                                SizedBox(width: 4),
+                                Text('Copier', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                              ]),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 8),
 
