@@ -10,10 +10,6 @@ if not os.path.exists(path):
 with open(path) as f:
     original = f.read()
 
-print("=== Original build.gradle.kts ===")
-print(original)
-print("=== End ===")
-
 if 'keystoreProperties' in original:
     print("Signing already configured")
     sys.exit(0)
@@ -28,47 +24,56 @@ header = (
     '}\n\n'
 )
 
-signing_config = '''
-    signingConfigs {
-        create("audiolens") {
-            keyAlias = keystoreProperties["keyAlias"] as String?
-            keyPassword = keystoreProperties["keyPassword"] as String?
-            storeFile = keystoreProperties["storeFile"]?.let { file(it as String) }
-            storePassword = keystoreProperties["storePassword"] as String?
-        }
-    }
-'''
+signing_config = (
+    '\n    signingConfigs {\n'
+    '        create("audiolens") {\n'
+    '            keyAlias = keystoreProperties["keyAlias"] as String?\n'
+    '            keyPassword = keystoreProperties["keyPassword"] as String?\n'
+    '            storeFile = keystoreProperties["storeFile"]?.let { file(it as String) }\n'
+    '            storePassword = keystoreProperties["storePassword"] as String?\n'
+    '        }\n'
+    '    }\n'
+)
 
 result = header + original
 
-# Insert signingConfigs after 'android {' (any whitespace variant)
-result = re.sub(
-    r'(android\s*\{)',
-    r'\1' + signing_config,
-    result,
-    count=1
+# Insert signingConfigs inside android {}
+result = re.sub(r'(android\s*\{)', r'\1' + signing_config, result, count=1)
+
+# Replace the entire buildTypes block with one that has both debug and release
+new_build_types = (
+    'buildTypes {\n'
+    '        debug {\n'
+    '            signingConfig = signingConfigs.getByName("audiolens")\n'
+    '        }\n'
+    '        release {\n'
+    '            signingConfig = signingConfigs.getByName("audiolens")\n'
+    '        }\n'
+    '    }'
 )
 
-# Apply signing to ALL buildTypes using regex
-# Replace any signingConfig = signingConfigs.getByName("debug")
-result = re.sub(
-    r'signingConfig\s*=\s*signingConfigs\.getByName\(["\']debug["\']\)',
-    'signingConfig = signingConfigs.getByName("audiolens")',
-    result
-)
+# Match buildTypes { ... } where ... may contain nested braces
+def replace_build_types(text, replacement):
+    start = text.find('buildTypes')
+    if start == -1:
+        return text
+    # Find the matching closing brace
+    depth = 0
+    i = text.index('{', start)
+    while i < len(text):
+        if text[i] == '{':
+            depth += 1
+        elif text[i] == '}':
+            depth -= 1
+            if depth == 0:
+                return text[:start] + replacement + text[i+1:]
+        i += 1
+    return text
 
-# Add signingConfig to debug buildType if not present
-if 'signingConfig = signingConfigs.getByName("audiolens")' not in result:
-    # Find debug buildType and add signing
-    result = re.sub(
-        r'(debug\s*\{)',
-        r'\1\n            signingConfig = signingConfigs.getByName("audiolens")',
-        result
-    )
+result = replace_build_types(result, new_build_types)
 
 with open(path, 'w') as f:
     f.write(result)
 
-print("Signing configured successfully")
-print("=== Result ===")
+print("Signing configured for debug AND release buildTypes")
 print(result)
