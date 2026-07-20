@@ -7,6 +7,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../services/audio_guide_service.dart';
 import '../services/settings_service.dart';
 import '../services/history_service.dart';
+import '../utils/image_utils.dart';
 import 'dart:io';
 import '../services/location_service.dart';
 import 'player_screen.dart';
