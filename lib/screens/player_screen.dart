@@ -248,15 +248,55 @@ class _PlayerScreenState extends State<PlayerScreen> {
                             // Error
                             if (guide.state == GuideState.error)
                               Container(
-                                padding: const EdgeInsets.all(12),
+                                padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  color: Colors.red.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(8),
+                                  color: const Color(0xDD1a0000),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.redAccent.withOpacity(0.5)),
                                 ),
-                                child: Text(
-                                  guide.errorMessage ?? 'Erreur',
-                                  style: const TextStyle(
-                                      color: Colors.redAccent, fontSize: 12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.error_outline,
+                                            color: Colors.redAccent, size: 18),
+                                        const SizedBox(width: 8),
+                                        const Text('Erreur',
+                                            style: TextStyle(
+                                                color: Colors.redAccent,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 14)),
+                                        const Spacer(),
+                                        InkWell(
+                                          onTap: () {
+                                            Clipboard.setData(ClipboardData(
+                                                text: guide.errorMessage ?? ''));
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(
+                                                  content: Text('Erreur copiée'),
+                                                  duration: Duration(seconds: 2)));
+                                          },
+                                          child: const Padding(
+                                            padding: EdgeInsets.all(4),
+                                            child: Row(mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(Icons.copy, size: 14, color: Colors.white54),
+                                                SizedBox(width: 4),
+                                                Text('Copier', style: TextStyle(
+                                                    color: Colors.white54, fontSize: 11)),
+                                              ]),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      guide.errorMessage ?? 'Erreur inconnue',
+                                      style: const TextStyle(
+                                          color: Colors.white, fontSize: 12, height: 1.5),
+                                    ),
+                                  ],
                                 ),
                               ),
                           ],
