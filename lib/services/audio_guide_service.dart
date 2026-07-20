@@ -304,7 +304,7 @@ class AudioGuideService extends ChangeNotifier {
     } catch (e) {
       _stopProgressSimulation();
       _state = GuideState.error;
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _errorMessage = _sanitizeError(e.toString());
       notifyListeners();
       return null;
     }
@@ -354,6 +354,16 @@ class AudioGuideService extends ChangeNotifier {
       if (await piperWav.exists()) return piperWav.path;
     } catch (_) {}
     return null;
+  }
+
+  String _sanitizeError(String error) {
+    // Remove API keys (AIza... pattern) from error messages
+    var sanitized = error
+        .replaceAll('Exception: ', '')
+        .replaceAll(RegExp(r'key=[A-Za-z0-9_\-]{20,}'), 'key=***')
+        .replaceAll(RegExp(r'AIza[A-Za-z0-9_\-]{30,}'), '***')
+        .replaceAll(RegExp(r'\?key=[^&\s"]+'), '?key=***');
+    return sanitized;
   }
 
   @override
