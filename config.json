@@ -1,6 +1,6 @@
 {
   "gemini_model": "gemini-3.5-flash",
-  "gemini_api_url": "https://generativelanguage.googleapis.com/v1",
+  "gemini_api_url": "https://generativelanguage.googleapis.com/v1beta",
   "gemini_max_tokens": 3000,
   "gemini_temperature": 0.7,
   "gemini_nano_max_tokens": 256,
@@ -18,6 +18,7 @@
   "progress_simulation_interval_ms": 150,
   "gemini_model_fallbacks": [
     "gemini-2.5-flash-preview-05-20",
+    "gemini-2.0-flash",
     "gemini-1.5-flash"
   ],
   "gemini_tts_model": "gemini-2.5-flash-preview-tts",
