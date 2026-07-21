@@ -124,6 +124,12 @@ class RemoteConfigService {
 
   /// Load config: always try remote, use cache only if network fails.
   static Future<void> load() async {
+    // Always clear stale cache first — built-in defaults are always safe
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_cacheKey);
+    } catch (_) {}
+
     // Always try remote first (fast, tiny file)
     try {
       final response = await http.get(Uri.parse(_configUrl))
@@ -131,25 +137,15 @@ class RemoteConfigService {
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body) as Map<String, dynamic>;
         _current = RemoteConfig.fromJson(json);
-        // Update cache
+        // Save fresh cache
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_cacheKey, response.body);
         return;
       }
     } catch (_) {}
 
-    // Network failed — fall back to last known cache
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final cached = prefs.getString(_cacheKey);
-      if (cached != null) {
-        final json = jsonDecode(cached) as Map<String, dynamic>;
-        _current = RemoteConfig.fromJson(json);
-        return;
-      }
-    } catch (_) {}
-
-    // No cache either — use built-in defaults (already set)
+    // Network failed — use built-in defaults (already up to date in code)
+    // No cache fallback needed since defaults are maintained in code
   }
 
   /// Force refresh (e.g. from Settings)
