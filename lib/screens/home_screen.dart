@@ -422,7 +422,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                 Colors.transparent,
                                                 BlendMode.multiply),
                                         child: File(entry.imagePath).existsSync()
-                                            ? Image.file(File(entry.imagePath), fit: BoxFit.cover)
+                                            ? FutureBuilder<int>(
+                                              future: ImageUtils.getRotationQuarterTurns(File(entry.imagePath)),
+                                              builder: (_, snap) => RotatedBox(
+                                                quarterTurns: snap.data ?? 0,
+                                                child: Image.file(File(entry.imagePath), fit: BoxFit.cover),
+                                              ),
+                                            )
                                             : Container(color: theme.colorScheme.surfaceContainerHigh),
                                       ),
                                       // Status overlay
