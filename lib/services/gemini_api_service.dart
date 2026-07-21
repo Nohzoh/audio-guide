@@ -58,56 +58,68 @@ class GeminiApiService implements AIService {
     ];
 
     http.Response? response;
-    String? lastError;
+    final List<String> attempts = [];
 
     for (final model in modelsToTry) {
       final url =
+          '${cfg.geminiApiUrl}/models/$model:generateContent?key=***';
+      final fullUrl =
           '${cfg.geminiApiUrl}/models/$model:generateContent?key=$apiKey';
 
-      final resp = await http.post(
-        Uri.parse(url),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'contents': [
-            {
-              'parts': [
-                {
-                  'inline_data': {
-                    'mime_type': 'image/jpeg',
-                    'data': base64Image,
-                  }
-                },
-                {'text': prompt},
-              ]
-            }
-          ],
-          'generationConfig': {
-            'maxOutputTokens': cfg.geminiMaxTokens,
-            'temperature': cfg.geminiTemperature,
-            'thinkingConfig': {'thinkingBudget': cfg.geminiThinkingBudget, 'includeThoughts': false},
-          },
-        }),
-      ).timeout(const Duration(seconds: 30));
+      try {
+        final resp = await http.post(
+          Uri.parse(fullUrl),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'contents': [
+              {
+                'parts': [
+                  {
+                    'inline_data': {
+                      'mime_type': 'image/jpeg',
+                      'data': base64Image,
+                    }
+                  },
+                  {'text': prompt},
+                ]
+              }
+            ],
+            'generationConfig': {
+              'maxOutputTokens': cfg.geminiMaxTokens,
+              'temperature': cfg.geminiTemperature,
+              'thinkingConfig': {'thinkingBudget': cfg.geminiThinkingBudget, 'includeThoughts': false},
+            },
+          }),
+        ).timeout(const Duration(seconds: 30));
 
-      if (resp.statusCode == 200) {
-        response = resp;
-        break;
-      } else if (resp.statusCode == 429 || resp.statusCode == 404 || resp.statusCode == 503) {
-        // Quota exceeded, model unavailable, or overloaded — try next model
-        final err = jsonDecode(resp.body);
-        lastError = err['error']?['message'] ?? 'Quota exceeded';
+        if (resp.statusCode == 200) {
+          response = resp;
+          attempts.add('✓ $model');
+          break;
+        } else if (resp.statusCode == 429 || resp.statusCode == 404 || resp.statusCode == 503) {
+          final err = jsonDecode(resp.body);
+          final msg = err['error']?['message'] as String? ?? 'HTTP ${resp.statusCode}';
+          final short = msg.length > 80 ? msg.substring(0, 80) : msg;
+          attempts.add('✗ $model (${resp.statusCode}): $short');
+          continue;
+        } else {
+          final err = jsonDecode(resp.body);
+          final msg = err['error']?['message'] ?? resp.body;
+          attempts.add('✗ $model (${resp.statusCode}): $msg');
+          throw Exception(
+            'Gemini API erreur ${resp.statusCode} sur $model:\n$msg',
+          );
+        }
+      } catch (e) {
+        if (e is Exception && e.toString().contains('Gemini API erreur')) rethrow;
+        attempts.add('✗ $model (timeout/réseau): $e');
         continue;
-      } else {
-        final err = jsonDecode(resp.body);
-        throw Exception(
-          'Gemini API erreur ${resp.statusCode}: '
-          '${err['error']?['message'] ?? resp.body}',
-        );
       }
     }
 
     if (response == null) {
-      throw Exception('Tous les modèles Gemini sont en quota: $lastError');
+      final trace = attempts.join('\n');
+      throw Exception('Gemini: tous les modèles ont échoué:\n$trace');
     }
 
     final data = jsonDecode(response.body) as Map<String, dynamic>;
