@@ -39,8 +39,8 @@ class RemoteConfig {
   final int geminiThinkingBudget;
 
   const RemoteConfig({
-    this.geminiModel = 'gemini-2.5-flash',
-    this.geminiModelFallbacks = const ['gemini-3.0-flash', 'gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-1.5-flash'],
+    this.geminiModel = 'gemini-3.5-flash',
+    this.geminiModelFallbacks = const ['gemini-2.5-flash-preview-05-20', 'gemini-1.5-flash-latest'],
     this.geminiApiUrl = 'https://generativelanguage.googleapis.com/v1',
     this.geminiMaxTokens = 1024,
     this.geminiTemperature = 0.7,
@@ -64,7 +64,8 @@ class RemoteConfig {
 
   factory RemoteConfig.fromJson(Map<String, dynamic> json) {
     return RemoteConfig(
-      geminiModel: json['gemini_model'] as String? ?? 'gemini-2.0-flash-latest',
+      geminiModel: json['gemini_model'] as String? ?? 'gemini-3.5-flash',
+      geminiModelFallbacks: (json['gemini_model_fallbacks'] as List<dynamic>?)?.cast<String>() ?? const ['gemini-2.5-flash-preview-05-20', 'gemini-1.5-flash-latest'],
       geminiApiUrl: json['gemini_api_url'] as String?
           ?? 'https://generativelanguage.googleapis.com/v1beta',
       geminiMaxTokens: json['gemini_max_tokens'] as int? ?? 1024,
