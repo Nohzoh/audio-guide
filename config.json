@@ -17,9 +17,9 @@
   "timing_history_size": 5,
   "progress_simulation_interval_ms": 150,
   "gemini_model_fallbacks": [
-    "gemini-2.5-flash-preview-05-20",
     "gemini-2.0-flash",
-    "gemini-1.5-flash"
+    "gemini-2.0-flash-lite",
+    "gemini-1.5-flash-latest"
   ],
   "gemini_tts_model": "gemini-2.5-flash-preview-tts",
   "gemini_tts_voice": "Aoede",
