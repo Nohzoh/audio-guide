@@ -1,27 +1,35 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:exif/exif.dart';
 import 'package:image/image.dart' as img;
 
 class ImageUtils {
-  /// Decode image and auto-rotate based on EXIF orientation
-  /// Returns corrected bytes, or null on error
-  static Future<Uint8List?> autoRotate(File file) async {
+  /// Returns quarter-turn rotation needed to display image upright
+  /// based on EXIF orientation tag
+  static Future<int> getRotationQuarterTurns(File file) async {
     try {
       final bytes = await file.readAsBytes();
-      final decoded = img.decodeImage(bytes);
-      if (decoded == null) return null;
-      // img.decodeImage automatically applies EXIF rotation
-      return Uint8List.fromList(img.encodeJpg(decoded, quality: 90));
-    } catch (_) {
-      return null;
-    }
+      final data = await readExifFromBytes(bytes);
+      final orientation = data['Image Orientation'];
+      if (orientation == null) return 0;
+      final value = orientation.printable;
+      // EXIF orientation values
+      if (value.contains('Rotated 90 CW') || value.contains('90')) return 3;
+      if (value.contains('Rotated 180') || value.contains('180')) return 2;
+      if (value.contains('Rotated 270') || value.contains('270')) return 1;
+    } catch (_) {}
+    return 0;
   }
 
   /// Fix rotation of an image file in place
   static Future<void> fixRotation(File file) async {
-    final corrected = await autoRotate(file);
-    if (corrected != null) {
+    try {
+      final bytes = await file.readAsBytes();
+      final decoded = img.decodeImage(bytes);
+      if (decoded == null) return;
+      // img.decodeImage automatically applies EXIF rotation
+      final corrected = img.encodeJpg(decoded, quality: 90);
       await file.writeAsBytes(corrected);
-    }
+    } catch (_) {}
   }
 }
