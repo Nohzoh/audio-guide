@@ -40,7 +40,7 @@ class RemoteConfig {
 
   const RemoteConfig({
     this.geminiModel = 'gemini-3.5-flash',
-    this.geminiModelFallbacks = const ['gemini-2.5-flash-preview-05-20', 'gemini-1.5-flash-latest'],
+    this.geminiModelFallbacks = const ['gemini-2.5-flash-preview-05-20', 'gemini-1.5-flash'],
     this.geminiApiUrl = 'https://generativelanguage.googleapis.com/v1',
     this.geminiMaxTokens = 1024,
     this.geminiTemperature = 0.7,
@@ -65,9 +65,9 @@ class RemoteConfig {
   factory RemoteConfig.fromJson(Map<String, dynamic> json) {
     return RemoteConfig(
       geminiModel: json['gemini_model'] as String? ?? 'gemini-3.5-flash',
-      geminiModelFallbacks: (json['gemini_model_fallbacks'] as List<dynamic>?)?.cast<String>() ?? const ['gemini-2.5-flash-preview-05-20', 'gemini-1.5-flash-latest'],
+      geminiModelFallbacks: (json['gemini_model_fallbacks'] as List<dynamic>?)?.cast<String>() ?? const ['gemini-2.5-flash-preview-05-20', 'gemini-1.5-flash'],
       geminiApiUrl: json['gemini_api_url'] as String?
-          ?? 'https://generativelanguage.googleapis.com/v1beta',
+          ?? 'https://generativelanguage.googleapis.com/v1',
       geminiMaxTokens: json['gemini_max_tokens'] as int? ?? 1024,
       geminiTemperature: (json['gemini_temperature'] as num?)?.toDouble() ?? 0.7,
       geminiNanoMaxTokens: json['gemini_nano_max_tokens'] as int? ?? 256,
