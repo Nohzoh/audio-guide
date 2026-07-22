@@ -281,13 +281,16 @@ class AudioGuideService extends ChangeNotifier {
         try {
           geminiTts.onComplete = _ttsService.onComplete;
           await geminiTts.speak(_lastResult!.script);
+          _lastTtsModel = 'gemini-tts';
         } catch (ttsError) {
           // Gemini TTS failed — fall back to Piper
           debugPrint('Gemini TTS failed, falling back to Piper: \$ttsError');
           await _ttsService.speak(_lastResult!.script);
+          _lastTtsModel = 'piper';
         }
       } else {
         await _ttsService.speak(_lastResult!.script);
+        _lastTtsModel = 'piper';
       }
       // Cache the generated audio for replay without re-generating
       _lastAudioPath = await _getLastWavPath();
