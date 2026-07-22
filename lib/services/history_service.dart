@@ -153,6 +153,14 @@ class HistoryService extends ChangeNotifier {
     required String script,
     String? locationName,
   }) async {
+    // Delete stale audio file if it exists
+    final existing = _entries.firstWhere((e) => e.id == entryId,
+        orElse: () => HistoryEntry(id: entryId, imagePath: '', title: '',
+            script: '', createdAt: DateTime.now()));
+    if (existing.audioPath != null) {
+      try { await File(existing.audioPath!).delete(); } catch (_) {}
+    }
+
     await _db!.update(
       'history',
       {
@@ -160,6 +168,8 @@ class HistoryService extends ChangeNotifier {
         'script': script,
         'locationName': locationName,
         'status': AnalysisStatus.complete.name,
+        'audioPath': null, // clear stale audio
+        'ttsModel': null,
       },
       where: 'id = ?',
       whereArgs: [entryId],
@@ -172,7 +182,7 @@ class HistoryService extends ChangeNotifier {
         title: title,
         script: script,
         locationName: locationName,
-        audioPath: _entries[idx].audioPath,
+        audioPath: null, // cleared — will regenerate on next listen
         createdAt: _entries[idx].createdAt,
         status: AnalysisStatus.complete,
       );
