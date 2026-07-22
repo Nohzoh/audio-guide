@@ -120,6 +120,10 @@ class RemoteConfigService {
   static const _cacheTtlHours = 6;
 
   static RemoteConfig _current = const RemoteConfig();
+  static DateTime? _loadedAt;
+  static bool _loadedFromRemote = false;
+  static DateTime? get loadedAt => _loadedAt;
+  static bool get loadedFromRemote => _loadedFromRemote;
   static RemoteConfig get current => _current;
 
   /// Load config: always try remote, use cache only if network fails.
@@ -137,6 +141,8 @@ class RemoteConfigService {
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body) as Map<String, dynamic>;
         _current = RemoteConfig.fromJson(json);
+        _loadedAt = DateTime.now();
+        _loadedFromRemote = true;
         // Save fresh cache
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_cacheKey, response.body);
