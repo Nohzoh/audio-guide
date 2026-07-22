@@ -50,7 +50,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (mounted) setState(() => _permissionStatus = status);
   }
 
+  ImageSource? _lastSource;
+
   Future<void> _pickImage(ImageSource source) async {
+    _lastSource = source;
     final guide = context.read<AudioGuideService>();
     final history = context.read<HistoryService>();
 
@@ -81,6 +84,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         title: result.title,
         script: result.script,
         locationName: result.locationName,
+        aiModel: guide.lastAiModel,
+        analysisSource: _lastSource == ImageSource.camera ? 'camera' : 'gallery',
+        gpsSource: guide.lastGpsSource,
+        wikipediaUsed: guide.lastWikipediaUsed,
+        analysisDurationMs: guide.lastAnalysisDurationMs,
+        gpsLatitude: guide.lastGpsLatitude,
+        gpsLongitude: guide.lastGpsLongitude,
+        gpsAddress: guide.lastGpsAddress,
       );
       final audioPath = guide.lastAudioPath;
       if (audioPath != null) {
@@ -141,6 +152,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         title: result.title,
         script: result.script,
         locationName: result.locationName,
+        aiModel: guide.lastAiModel,
+        analysisSource: 'retry',
+        gpsSource: guide.lastGpsSource,
+        wikipediaUsed: guide.lastWikipediaUsed,
+        analysisDurationMs: guide.lastAnalysisDurationMs,
+        gpsLatitude: guide.lastGpsLatitude,
+        gpsLongitude: guide.lastGpsLongitude,
+        gpsAddress: guide.lastGpsAddress,
       );
       final audioPath = guide.lastAudioPath;
       if (audioPath != null) {
