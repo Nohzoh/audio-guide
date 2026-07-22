@@ -10,6 +10,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../services/audio_guide_service.dart';
 import '../services/history_service.dart';
+import 'about_analysis_screen.dart';
 import 'package:provider/provider.dart';
 import '../services/audio_guide_service.dart';
 import '../services/tts_service.dart';
@@ -296,6 +297,13 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                         onPressed: () => Navigator.pop(context),
                       ),
                       const Spacer(),
+                      IconButton(
+                        icon: const Icon(Icons.info_outline,
+                            color: Colors.white54),
+                        onPressed: () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) =>
+                              AboutAnalysisScreen(entry: widget.entry))),
+                      ),
                       IconButton(
                         icon: const Icon(Icons.delete_outline,
                             color: Colors.redAccent),
