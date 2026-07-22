@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/audio_guide_service.dart';
+import '../services/remote_config_service.dart';
+import 'package:intl/intl.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -147,6 +149,82 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           const SizedBox(height: 32),
 
+          // Active config section
+          _SectionHeader('Configuration active'),
+          const SizedBox(height: 8),
+          Builder(builder: (context) {
+            final cfg = RemoteConfigService.current;
+            final loadedAt = RemoteConfigService.loadedAt;
+            final fromRemote = RemoteConfigService.loadedFromRemote;
+            return Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    Icon(
+                      fromRemote ? Icons.cloud_done : Icons.cloud_off,
+                      size: 14,
+                      color: fromRemote ? Colors.greenAccent : Colors.orange,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      fromRemote ? 'Config chargée depuis GitHub' : 'Config par défaut (hors ligne)',
+                      style: TextStyle(
+                        color: fromRemote ? Colors.greenAccent : Colors.orange,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ]),
+                  if (loadedAt != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Mise à jour : ${DateFormat("dd/MM/yyyy à HH:mm").format(loadedAt)}',
+                      style: const TextStyle(color: Colors.white38, fontSize: 11),
+                    ),
+                  ],
+                  const Divider(height: 20, color: Colors.white12),
+                  _ConfigRow('Modèle IA', cfg.geminiModel),
+                  _ConfigRow('Fallbacks', cfg.geminiModelFallbacks.join(', ')),
+                  _ConfigRow('Modèle TTS', cfg.geminiTtsModel),
+                  _ConfigRow('Voix TTS', cfg.geminiTtsVoice),
+                  _ConfigRow('Tokens max', cfg.geminiMaxTokens.toString()),
+                  _ConfigRow('Thinking budget', cfg.geminiThinkingBudget.toString()),
+                  _ConfigRow('Rayon Wikipedia', '${cfg.wikipediaRadiusMeters}m'),
+                  _ConfigRow('Vitesse TTS', cfg.ttsSpeed.toString()),
+                ],
+              ),
+            );
+          }),
+
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.refresh, size: 16),
+            label: const Text('Rafraîchir la config'),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 44),
+            ),
+            onPressed: () async {
+              await RemoteConfigService.forceRefresh();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(
+                    RemoteConfigService.loadedFromRemote
+                        ? 'Config mise à jour depuis GitHub'
+                        : 'Impossible de joindre GitHub, config par défaut',
+                  )),
+                );
+                (context as Element).markNeedsBuild();
+              }
+            },
+          ),
+
+          const SizedBox(height: 32),
+
           // Info box
           Container(
             padding: const EdgeInsets.all(16),
@@ -261,6 +339,33 @@ class _ProviderCard extends StatelessWidget {
                 : const Icon(Icons.lock_outline, color: Colors.white24),
         onTap: onTap,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+}
+
+class _ConfigRow extends StatelessWidget {
+  final String label;
+  final String value;
+  const _ConfigRow(this.label, this.value);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 130,
+            child: Text(label,
+                style: const TextStyle(color: Colors.white54, fontSize: 12)),
+          ),
+          Expanded(
+            child: Text(value,
+                style: const TextStyle(color: Colors.white70, fontSize: 12)),
+          ),
+        ],
       ),
     );
   }
