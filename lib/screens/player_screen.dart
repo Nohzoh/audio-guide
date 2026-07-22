@@ -201,6 +201,24 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
                               const SizedBox(height: 8),
 
+                              // Fallback banners
+                              if (guide.state == GuideState.speaking ||
+                                  guide.state == GuideState.paused) ...[
+                                if (guide.aiModelWasFallback)
+                                  _FallbackBanner(
+                                    icon: Icons.swap_horiz,
+                                    message: 'Modèle IA : ${guide.actualAiModel ?? "?"} (fallback)',
+                                    color: Colors.orange,
+                                  ),
+                                if (guide.ttsWasFallback)
+                                  _FallbackBanner(
+                                    icon: Icons.volume_down,
+                                    message: 'Voix Piper (Gemini TTS indisponible)',
+                                    color: Colors.orange,
+                                  ),
+                                const SizedBox(height: 8),
+                              ],
+
                               // Scrollable script with reading progress bar
                               Expanded(
                                 child: Stack(
@@ -578,3 +596,34 @@ class _StateLabel extends StatelessWidget {
   }
 }
 
+class _FallbackBanner extends StatelessWidget {
+  final IconData icon;
+  final String message;
+  final Color color;
+
+  const _FallbackBanner({
+      required this.icon, required this.message, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(message,
+                style: TextStyle(color: color, fontSize: 11)),
+          ),
+        ],
+      ),
+    );
+  }
+}
