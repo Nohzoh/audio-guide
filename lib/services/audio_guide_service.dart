@@ -39,6 +39,20 @@ class AudioGuideService extends ChangeNotifier {
   String? get lastAudioPath => _lastAudioPath;
   String _lastTtsModel = "piper";
   String get lastTtsModel => _lastTtsModel;
+  String? _lastAiModel;
+  String? get lastAiModel => _lastAiModel;
+  String? _lastGpsSource;
+  String? get lastGpsSource => _lastGpsSource;
+  bool _lastWikipediaUsed = false;
+  bool get lastWikipediaUsed => _lastWikipediaUsed;
+  int? _lastAnalysisDurationMs;
+  int? get lastAnalysisDurationMs => _lastAnalysisDurationMs;
+  double? _lastGpsLatitude;
+  double? get lastGpsLatitude => _lastGpsLatitude;
+  double? _lastGpsLongitude;
+  double? get lastGpsLongitude => _lastGpsLongitude;
+  String? _lastGpsAddress;
+  String? get lastGpsAddress => _lastGpsAddress;
 
   final GeminiNanoService _nanoService = GeminiNanoService();
 
@@ -221,9 +235,15 @@ class AudioGuideService extends ChangeNotifier {
       if (exifCoords != null) {
         locationResult = await LocationService.fromCoordinates(
             exifCoords.lat, exifCoords.lon);
+        _lastGpsSource = 'exif';
       } else {
         locationResult = await LocationService.getCurrentLocation();
+        _lastGpsSource = locationResult.status == LocationPermissionStatus.granted
+            ? 'realtime' : 'none';
       }
+      _lastGpsLatitude = locationResult.info?.latitude;
+      _lastGpsLongitude = locationResult.info?.longitude;
+      _lastGpsAddress = locationResult.info?.contextForPrompt;
       _gpsDurations.add(DateTime.now().difference(gpsStart).inMilliseconds / 1000.0);
       if (_gpsDurations.length > 5) _gpsDurations.removeAt(0);
       _lastLocationStatus = locationResult.status;
@@ -237,6 +257,9 @@ class AudioGuideService extends ChangeNotifier {
         );
         if (wikiResults.isNotEmpty) {
           wikiContext = WikipediaService.buildContext(wikiResults);
+          _lastWikipediaUsed = true;
+        } else {
+          _lastWikipediaUsed = false;
         }
       }
 
@@ -254,12 +277,15 @@ class AudioGuideService extends ChangeNotifier {
           ? _analyzeDurations.reduce((a, b) => a + b) / _analyzeDurations.length
           : 10.0);
 
+      _lastAiModel = _providerName;
       final analyzeStart = DateTime.now();
       _lastResult = await service.analyzeImage(
         imageFile,
         locationContext: fullContext.isNotEmpty ? fullContext : null,
       );
-      _analyzeDurations.add(DateTime.now().difference(analyzeStart).inMilliseconds / 1000.0);
+      final analysisDuration = DateTime.now().difference(analyzeStart).inMilliseconds;
+      _lastAnalysisDurationMs = analysisDuration;
+      _analyzeDurations.add(analysisDuration / 1000.0);
       if (_analyzeDurations.length > 5) _analyzeDurations.removeAt(0);
       _stopProgressSimulation();
 
