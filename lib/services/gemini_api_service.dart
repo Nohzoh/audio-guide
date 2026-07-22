@@ -5,6 +5,10 @@ import 'ai_service.dart';
 import 'remote_config_service.dart';
 
 class GeminiApiService implements AIService {
+  String? _lastUsedModel;
+  String? get lastUsedModel => _lastUsedModel;
+  List<String> _lastAttempts = [];
+  List<String> get lastAttempts => _lastAttempts;
   final String apiKey;
 
   GeminiApiService({required this.apiKey});
@@ -94,6 +98,7 @@ class GeminiApiService implements AIService {
 
         if (resp.statusCode == 200) {
           response = resp;
+          _lastUsedModel = model;
           attempts.add('✓ $model');
           break;
         } else if (resp.statusCode == 429 || resp.statusCode == 404 || resp.statusCode == 503) {
@@ -117,6 +122,7 @@ class GeminiApiService implements AIService {
       }
     }
 
+    _lastAttempts = attempts;
     if (response == null) {
       final trace = attempts.join('\n');
       throw Exception('Gemini: tous les modèles ont échoué:\n$trace');
