@@ -16,6 +16,16 @@ class HistoryEntry {
   final DateTime createdAt;
   final AnalysisStatus status;
   final String? ttsModel; // e.g. "gemini-tts", "piper"
+  final String? aiModel; // e.g. "gemini-3.5-flash", "gemini-nano"
+  final DateTime? analyzedAt;
+  final String? analysisSource; // "camera", "gallery", "retry"
+  final String? gpsSource; // "realtime", "exif", "none"
+  final bool wikipediaUsed;
+  final int? wordCount;
+  final int? analysisDurationMs;
+  final double? gpsLatitude;
+  final double? gpsLongitude;
+  final String? gpsAddress;
 
   const HistoryEntry({
     this.id,
@@ -27,11 +37,27 @@ class HistoryEntry {
     required this.createdAt,
     this.status = AnalysisStatus.complete,
     this.ttsModel,
+    this.aiModel,
+    this.analyzedAt,
+    this.analysisSource,
+    this.gpsSource,
+    this.wikipediaUsed = false,
+    this.wordCount,
+    this.analysisDurationMs,
+    this.gpsLatitude,
+    this.gpsLongitude,
+    this.gpsAddress,
   });
 
   bool get hasAudio => audioPath != null && File(audioPath!).existsSync();
   bool get isPending => status == AnalysisStatus.pending;
   bool get hasLowQualityTts => ttsModel == "piper" && audioPath != null;
+  String get audioDurationEstimate {
+    if (wordCount == null) return '';
+    final seconds = (wordCount! / 2.5).round(); // ~150 words/min
+    if (seconds < 60) return '~${seconds}s';
+    return '~${seconds ~/ 60}min${seconds % 60 > 0 ? " ${seconds % 60}s" : ""}';
+  }
 
   Map<String, dynamic> toMap() => {
     if (id != null) 'id': id,
@@ -43,6 +69,16 @@ class HistoryEntry {
     'createdAt': createdAt.toIso8601String(),
     'status': status.name,
     'ttsModel': ttsModel,
+    'aiModel': aiModel,
+    'analyzedAt': analyzedAt?.toIso8601String(),
+    'analysisSource': analysisSource,
+    'gpsSource': gpsSource,
+    'wikipediaUsed': wikipediaUsed ? 1 : 0,
+    'wordCount': wordCount,
+    'analysisDurationMs': analysisDurationMs,
+    'gpsLatitude': gpsLatitude,
+    'gpsLongitude': gpsLongitude,
+    'gpsAddress': gpsAddress,
   };
 
   factory HistoryEntry.fromMap(Map<String, dynamic> map) => HistoryEntry(
@@ -54,13 +90,23 @@ class HistoryEntry {
     audioPath: map['audioPath'] as String?,
     createdAt: DateTime.parse(map['createdAt'] as String),
     ttsModel: map['ttsModel'] as String?,
+    aiModel: map['aiModel'] as String?,
+    analyzedAt: map['analyzedAt'] != null ? DateTime.parse(map['analyzedAt'] as String) : null,
+    analysisSource: map['analysisSource'] as String?,
+    gpsSource: map['gpsSource'] as String?,
+    wikipediaUsed: (map['wikipediaUsed'] as int? ?? 0) == 1,
+    wordCount: map['wordCount'] as int?,
+    analysisDurationMs: map['analysisDurationMs'] as int?,
+    gpsLatitude: map['gpsLatitude'] as double?,
+    gpsLongitude: map['gpsLongitude'] as double?,
+    gpsAddress: map['gpsAddress'] as String?,
     status: AnalysisStatus.values.firstWhere(
       (s) => s.name == (map['status'] as String? ?? 'complete'),
       orElse: () => AnalysisStatus.complete,
     ),
   );
 
-  HistoryEntry copyWith({String? audioPath, AnalysisStatus? status, String? ttsModel}) => HistoryEntry(
+  HistoryEntry copyWith({String? audioPath, AnalysisStatus? status, String? ttsModel, String? aiModel}) => HistoryEntry(
     id: id,
     imagePath: imagePath,
     title: title,
@@ -70,6 +116,7 @@ class HistoryEntry {
     createdAt: createdAt,
     status: status ?? this.status,
     ttsModel: ttsModel ?? this.ttsModel,
+    aiModel: aiModel ?? this.aiModel,
   );
 }
 
@@ -83,7 +130,7 @@ class HistoryService extends ChangeNotifier {
     final dbPath = await getDatabasesPath();
     _db = await openDatabase(
       join(dbPath, 'audio_guide_history.db'),
-      version: 4,
+      version: 5,
       onCreate: (db, version) {
         return db.execute('''
           CREATE TABLE history(
@@ -95,6 +142,16 @@ class HistoryService extends ChangeNotifier {
             audioPath TEXT,
             status TEXT NOT NULL DEFAULT 'complete',
             ttsModel TEXT,
+            aiModel TEXT,
+            analyzedAt TEXT,
+            analysisSource TEXT,
+            gpsSource TEXT,
+            wikipediaUsed INTEGER NOT NULL DEFAULT 0,
+            wordCount INTEGER,
+            analysisDurationMs INTEGER,
+            gpsLatitude REAL,
+            gpsLongitude REAL,
+            gpsAddress TEXT,
             createdAt TEXT NOT NULL
           )
         ''');
@@ -108,6 +165,22 @@ class HistoryService extends ChangeNotifier {
         }
         if (oldVersion < 4) {
           await db.execute('ALTER TABLE history ADD COLUMN ttsModel TEXT');
+        }
+        if (oldVersion < 5) {
+          for (final col in [
+            'ALTER TABLE history ADD COLUMN aiModel TEXT',
+            'ALTER TABLE history ADD COLUMN analyzedAt TEXT',
+            'ALTER TABLE history ADD COLUMN analysisSource TEXT',
+            'ALTER TABLE history ADD COLUMN gpsSource TEXT',
+            "ALTER TABLE history ADD COLUMN wikipediaUsed INTEGER NOT NULL DEFAULT 0",
+            'ALTER TABLE history ADD COLUMN wordCount INTEGER',
+            'ALTER TABLE history ADD COLUMN analysisDurationMs INTEGER',
+            'ALTER TABLE history ADD COLUMN gpsLatitude REAL',
+            'ALTER TABLE history ADD COLUMN gpsLongitude REAL',
+            'ALTER TABLE history ADD COLUMN gpsAddress TEXT',
+          ]) {
+            await db.execute(col);
+          }
         }
       },
     );
@@ -152,6 +225,14 @@ class HistoryService extends ChangeNotifier {
     required String title,
     required String script,
     String? locationName,
+    String? aiModel,
+    String? analysisSource,
+    String? gpsSource,
+    bool wikipediaUsed = false,
+    int? analysisDurationMs,
+    double? gpsLatitude,
+    double? gpsLongitude,
+    String? gpsAddress,
   }) async {
     // Delete stale audio file if it exists
     final existing = _entries.firstWhere((e) => e.id == entryId,
@@ -168,8 +249,18 @@ class HistoryService extends ChangeNotifier {
         'script': script,
         'locationName': locationName,
         'status': AnalysisStatus.complete.name,
-        'audioPath': null, // clear stale audio
+        'audioPath': null,
         'ttsModel': null,
+        'aiModel': aiModel,
+        'analyzedAt': DateTime.now().toIso8601String(),
+        'analysisSource': analysisSource,
+        'gpsSource': gpsSource,
+        'wikipediaUsed': wikipediaUsed ? 1 : 0,
+        'wordCount': script.trim().split(RegExp(r'\s+')).length,
+        'analysisDurationMs': analysisDurationMs,
+        'gpsLatitude': gpsLatitude,
+        'gpsLongitude': gpsLongitude,
+        'gpsAddress': gpsAddress,
       },
       where: 'id = ?',
       whereArgs: [entryId],
@@ -296,4 +387,5 @@ class HistoryService extends ChangeNotifier {
     super.dispose();
   }
 }
+
 
