@@ -179,6 +179,7 @@ class HistoryDetailScreen extends StatefulWidget {
 
 class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
   bool _isPlaying = false;
+  bool _isUpgrading = false;
 
   // Use AudioGuideService TTS so same voice as first analysis
   _getTts(BuildContext context) {
@@ -435,28 +436,36 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 8),
                               child: OutlinedButton.icon(
-                                icon: const Icon(Icons.auto_awesome, size: 16),
-                                label: const Text('Améliorer la voix'),
+                                icon: _isUpgrading
+                                    ? const SizedBox(width: 14, height: 14,
+                                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.amber))
+                                    : const Icon(Icons.auto_awesome, size: 16),
+                                label: Text(_isUpgrading ? 'Génération en cours...' : 'Améliorer la voix'),
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: Colors.amber,
                                   side: const BorderSide(color: Colors.amber),
                                   minimumSize: const Size(double.infinity, 40),
                                 ),
-                                onPressed: () async {
+                                onPressed: _isUpgrading ? null : () async {
                                   final history = context.read<HistoryService>();
+                                  setState(() => _isUpgrading = true);
                                   try {
                                     final tts = guide.geminiTtsService!;
                                     tts.onComplete = () => setState(() => _isPlaying = false);
-                                    setState(() => _isPlaying = true);
+                                    // Generate audio first, then play
                                     await tts.speak(widget.entry.script);
+                                    // Save upgraded audio
                                     final tmpDir = await getTemporaryDirectory();
                                     final wavPath = '\${tmpDir.path}/gemini_tts_output.wav';
                                     if (File(wavPath).existsSync() && widget.entry.id != null) {
                                       await history.saveAudioPath(
                                         widget.entry.id!, wavPath, ttsModel: 'gemini-tts');
                                     }
+                                    setState(() => _isPlaying = true);
                                   } catch (_) {
                                     setState(() => _isPlaying = false);
+                                  } finally {
+                                    setState(() => _isUpgrading = false);
                                   }
                                 },
                               ),
