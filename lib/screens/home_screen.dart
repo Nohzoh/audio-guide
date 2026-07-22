@@ -63,8 +63,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (xFile == null || !mounted) return;
 
     final imageFile = File(xFile.path);
-    // Fix EXIF rotation for correct thumbnail display
-    await ImageUtils.fixRotation(imageFile);
 
     // Create pending entry immediately — visible in gallery during analysis
     final pendingEntry = await history.addPendingEntry(imagePath: imageFile.path);
