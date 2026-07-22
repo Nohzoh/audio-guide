@@ -53,6 +53,27 @@ class AudioGuideService extends ChangeNotifier {
   double? get lastGpsLongitude => _lastGpsLongitude;
   String? _lastGpsAddress;
   String? get lastGpsAddress => _lastGpsAddress;
+  // Fallback info
+  bool get aiModelWasFallback {
+    final svc = _currentService;
+    if (svc is GeminiApiService) {
+      final used = svc.lastUsedModel;
+      final cfg = RemoteConfigService.current;
+      return used != null && used != cfg.geminiModel;
+    }
+    return false;
+  }
+  String? get actualAiModel {
+    final svc = _currentService;
+    if (svc is GeminiApiService) return svc.lastUsedModel;
+    return _lastAiModel;
+  }
+  List<String> get aiModelAttempts {
+    final svc = _currentService;
+    if (svc is GeminiApiService) return svc.lastAttempts;
+    return [];
+  }
+  bool get ttsWasFallback => _lastTtsModel == 'piper' && _geminiTtsService != null;
 
   final GeminiNanoService _nanoService = GeminiNanoService();
 
@@ -277,7 +298,7 @@ class AudioGuideService extends ChangeNotifier {
           ? _analyzeDurations.reduce((a, b) => a + b) / _analyzeDurations.length
           : 10.0);
 
-      _lastAiModel = _providerName;
+      _lastAiModel = _providerName; // will be refined after analysis
       final analyzeStart = DateTime.now();
       _lastResult = await service.analyzeImage(
         imageFile,
