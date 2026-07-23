@@ -8,7 +8,6 @@ import '../services/audio_guide_service.dart';
 import '../services/settings_service.dart';
 import '../services/history_service.dart';
 import '../utils/image_utils.dart';
-import 'dart:io';
 import '../services/location_service.dart';
 import 'player_screen.dart';
 import 'history_screen.dart';
@@ -66,40 +65,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (xFile == null || !mounted) return;
 
     final imageFile = File(xFile.path);
-
-    // Create pending entry immediately — visible in gallery during analysis
     final pendingEntry = await history.addPendingEntry(imagePath: imageFile.path);
-
-    Navigator.push(context, MaterialPageRoute(
-      builder: (_) => PlayerScreen(imageFile: imageFile),
-    ));
-
-    final result = await guide.analyzeAndPlay(imageFile);
-
-    setState(() => _permissionStatus = guide.lastLocationStatus);
-
-    if (result != null && pendingEntry.id != null) {
-      await history.completeEntry(
-        entryId: pendingEntry.id!,
-        title: result.title,
-        script: result.script,
-        locationName: result.locationName,
-        aiModel: guide.lastAiModel,
-        analysisSource: _lastSource == ImageSource.camera ? 'camera' : 'gallery',
-        gpsSource: guide.lastGpsSource,
-        wikipediaUsed: guide.lastWikipediaUsed,
-        analysisDurationMs: guide.lastAnalysisDurationMs,
-        gpsLatitude: guide.lastGpsLatitude,
-        gpsLongitude: guide.lastGpsLongitude,
-        gpsAddress: guide.lastGpsAddress,
-      );
-      final audioPath = guide.lastAudioPath;
-      if (audioPath != null) {
-        await history.saveAudioPath(pendingEntry.id!, audioPath, ttsModel: guide.lastTtsModel);
-      }
-    } else if (result == null && pendingEntry.id != null) {
-      await history.failEntry(pendingEntry.id!);
-    }
+    final source = _lastSource == ImageSource.camera ? 'camera' : 'gallery';
+    await _runAnalysis(imageFile: imageFile, entryId: pendingEntry.id!, source: source);
   }
 
   void _showLocationDeniedForeverDialog() {
@@ -140,20 +108,33 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return;
     }
 
+    await _runAnalysis(imageFile: imageFile, entryId: entry.id!, source: 'retry');
+  }
+
+  Future<void> _runAnalysis({
+    required File imageFile,
+    required int entryId,
+    required String source,
+  }) async {
+    final guide = context.read<AudioGuideService>();
+    final history = context.read<HistoryService>();
+
     Navigator.push(context, MaterialPageRoute(
       builder: (_) => PlayerScreen(imageFile: imageFile),
     ));
 
     final result = await guide.analyzeAndPlay(imageFile);
 
-    if (result != null && entry.id != null) {
+    if (mounted) setState(() => _permissionStatus = guide.lastLocationStatus);
+
+    if (result != null) {
       await history.completeEntry(
-        entryId: entry.id!,
+        entryId: entryId,
         title: result.title,
         script: result.script,
         locationName: result.locationName,
-        aiModel: guide.lastAiModel,
-        analysisSource: 'retry',
+        aiModel: guide.actualAiModel ?? guide.lastAiModel,
+        analysisSource: source,
         gpsSource: guide.lastGpsSource,
         wikipediaUsed: guide.lastWikipediaUsed,
         analysisDurationMs: guide.lastAnalysisDurationMs,
@@ -163,10 +144,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       );
       final audioPath = guide.lastAudioPath;
       if (audioPath != null) {
-        await history.saveAudioPath(entry.id!, audioPath, ttsModel: guide.lastTtsModel);
+        await history.saveAudioPath(entryId, audioPath, ttsModel: guide.lastTtsModel);
       }
-    } else if (result == null && entry.id != null) {
-      await history.failEntry(entry.id!);
+    } else {
+      await history.failEntry(entryId);
     }
   }
 
