@@ -84,6 +84,9 @@ class RemoteConfig {
       timingHistorySize: json['timing_history_size'] as int? ?? 5,
       progressSimulationIntervalMs:
           json['progress_simulation_interval_ms'] as int? ?? 150,
+      geminiTtsModel: json['gemini_tts_model'] as String? ?? 'gemini-2.5-flash-preview-tts',
+      geminiTtsVoice: json['gemini_tts_voice'] as String? ?? 'Aoede',
+      geminiThinkingBudget: json['gemini_thinking_budget'] as int? ?? 512,
     );
   }
 
@@ -116,8 +119,6 @@ class RemoteConfigService {
   static const _configUrl =
       'https://raw.githubusercontent.com/Nohzoh/audio-guide/main/config.json';
   static const _cacheKey = 'remote_config_cache';
-  static const _cacheAgeKey = 'remote_config_cache_age';
-  static const _cacheTtlHours = 6;
 
   static RemoteConfig _current = const RemoteConfig();
   static DateTime? _loadedAt;
