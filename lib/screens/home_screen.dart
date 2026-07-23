@@ -66,8 +66,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     final imageFile = File(xFile.path);
     final pendingEntry = await history.addPendingEntry(imagePath: imageFile.path);
-    final source = _lastSource == ImageSource.camera ? 'camera' : 'gallery';
-    await _runAnalysis(imageFile: imageFile, entryId: pendingEntry.id!, source: source);
+    final analysisSource = _lastSource == ImageSource.camera ? 'camera' : 'gallery';
+    await _runAnalysis(imageFile: imageFile, entryId: pendingEntry.id!, source: analysisSource);
   }
 
   void _showLocationDeniedForeverDialog() {
