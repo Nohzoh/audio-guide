@@ -167,16 +167,28 @@ class GeminiApiService implements AIService {
         .replaceAll(RegExp(r'^#{1,6}\s+', multiLine: true), '')
         .replaceAll(RegExp(r'\n{3,}'), '\n\n')
         .trim();
-    // Remove English thinking preamble lines
+    // Remove English thinking/meta lines
     final lines = result.split('\n');
     final filtered = lines.where((line) {
-      final lower = line.toLowerCase();
-      return !lower.contains('rough estimate') &&
-             !lower.contains('word count') &&
-             !lower.startsWith("let's") &&
-             !lower.startsWith('okay,') &&
-             !lower.startsWith('alright,') &&
-             !RegExp(r'^paragraph \d', caseSensitive: false).hasMatch(lower);
+      final lower = line.trim().toLowerCase();
+      if (lower.isEmpty) return true;
+      // Skip lines that are clearly internal reasoning in English
+      final thinkingPatterns = [
+        'rough estimate', 'word count', 'let me ', 'let's ',
+        'okay,', 'alright,', 'i need to', 'i should', 'i will',
+        'currently it is', 'this is around', 'paragraph ',
+        'to ensure', 'to make sure', 'expanding', 'slightly',
+        'within the', 'word range', 'falls well',
+      ];
+      for (final p in thinkingPatterns) {
+        if (lower.contains(p)) return false;
+      }
+      // Skip lines that start with English words mid-thought
+      if (RegExp(r'^[a-z].*\.$', caseSensitive: true).hasMatch(line.trim()) &&
+          !line.trim().startsWith('e.') && !line.trim().startsWith('c.')) {
+        // Likely English sentence — skip if surrounded by French content
+      }
+      return true;
     }).toList();
     return filtered.join('\n').trim();
   }
