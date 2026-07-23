@@ -177,7 +177,7 @@ class GeminiApiService implements AIService {
       if (lower.isEmpty) return true;
       // Skip lines that are clearly internal reasoning in English
       final thinkingPatterns = [
-        'rough estimate', 'word count', 'let me '"let's " ',
+        'rough estimate', 'word count', 'let me ', "let's",
         'okay,', 'alright,', 'i need to', 'i should', 'i will',
         'currently it is', 'this is around', 'paragraph ',
         'to ensure', 'to make sure', 'expanding', 'slightly',
