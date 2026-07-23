@@ -7,7 +7,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../services/audio_guide_service.dart';
 import '../services/settings_service.dart';
 import '../services/history_service.dart';
-import '../utils/image_utils.dart';
 import '../services/location_service.dart';
 import 'player_screen.dart';
 import 'history_screen.dart';
@@ -420,13 +419,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                 Colors.transparent,
                                                 BlendMode.multiply),
                                         child: File(entry.imagePath).existsSync()
-                                            ? FutureBuilder<int>(
-                                              future: ImageUtils.getRotationQuarterTurns(File(entry.imagePath)),
-                                              builder: (_, snap) => RotatedBox(
-                                                quarterTurns: snap.data ?? 0,
-                                                child: Image.file(File(entry.imagePath), fit: BoxFit.cover),
-                                              ),
-                                            )
+                                            ? Image.file(File(entry.imagePath), fit: BoxFit.cover)
                                             : Container(color: theme.colorScheme.surfaceContainerHigh),
                                       ),
                                       // Status overlay
