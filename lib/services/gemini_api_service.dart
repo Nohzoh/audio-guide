@@ -53,7 +53,10 @@ class GeminiApiService implements AIService {
         'anecdote marquante, conclusion emotionnelle. '
         'Si tu reconnais l\'oeuvre, nomme-la avec des faits reels. '
         '$contextPart '
-        'Entre 300 et 400 mots pour le script, sans mise en forme ni asterisque.';
+        'Entre 300 et 400 mots pour le script, sans mise en forme ni asterisque. '
+        'Ne montre jamais ton raisonnement interne. '
+        'Ne commente pas le nombre de mots. '
+        'Ecris uniquement le JSON final, rien d\'autre.';
 
     // Try primary model then fallbacks on 429
     final modelsToTry = [
