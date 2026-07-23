@@ -1,11 +1,11 @@
 import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'ai_service.dart';
 import 'gemini_nano_service.dart';
 import 'gemini_api_service.dart';
-import 'anthropic_service.dart';
 import 'tts_service.dart';
 import 'gemini_tts_service.dart';
 import 'location_service.dart';
@@ -15,7 +15,7 @@ import 'history_service.dart';
 import 'remote_config_service.dart';
 
 enum GuideState { idle, locating, analyzing, synthesizing, speaking, paused, error }
-enum AIProvider { geminiNano, geminiApi, anthropic }
+enum AIProvider { geminiNano, geminiApi }
 
 class PipelineProgress {
   final GuideState state;
@@ -93,6 +93,7 @@ class AudioGuideService extends ChangeNotifier {
   AIProvider get activeProvider => _activeProvider;
   bool get nanoAvailable => _nanoAvailable;
   String? get geminiApiKey => _geminiApiKey;
+  GeminiApiService? _geminiApiService; // cached instance
 
   // Timing history
   List<double> _gpsDurations = [];
@@ -149,7 +150,6 @@ class AudioGuideService extends ChangeNotifier {
       if (_geminiApiKey?.isNotEmpty == true) {
         _activeProvider = AIProvider.geminiApi;
       } else if (anthropicApiKey?.isNotEmpty == true) {
-        _activeProvider = AIProvider.anthropic;
       }
     }
 
@@ -170,8 +170,6 @@ class AudioGuideService extends ChangeNotifier {
         _providerName = 'Gemini Nano';
       case AIProvider.geminiApi:
         _providerName = 'Gemini API';
-      case AIProvider.anthropic:
-        _providerName = 'Claude (cloud)';
     }
   }
 
@@ -180,11 +178,7 @@ class AudioGuideService extends ChangeNotifier {
       case AIProvider.geminiNano:
         return _nanoAvailable ? _nanoService : null;
       case AIProvider.geminiApi:
-        final key = _geminiApiKey;
-        if (key?.isNotEmpty == true) return GeminiApiService(apiKey: key!);
-        return null;
-      case AIProvider.anthropic:
-        return null;
+        return _geminiApiService;
     }
   }
 
@@ -198,6 +192,7 @@ class AudioGuideService extends ChangeNotifier {
 
   Future<void> setGeminiApiKey(String key) async {
     _geminiApiKey = key.isEmpty ? null : key;
+    _geminiApiService = key.isNotEmpty ? GeminiApiService(apiKey: key) : null;
     _geminiTtsService = key.isNotEmpty ? GeminiTtsService(apiKey: key) : null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('gemini_api_key', key);
@@ -210,15 +205,11 @@ class AudioGuideService extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setApiKey(String apiKey) {
-    // Legacy: Anthropic key
-    notifyListeners();
-  }
-
   Future<void> _loadPreferences() async {
     final prefs = await SharedPreferences.getInstance();
     _geminiApiKey = prefs.getString('gemini_api_key');
     if (_geminiApiKey?.isNotEmpty == true) {
+      _geminiApiService = GeminiApiService(apiKey: _geminiApiKey!);
       _geminiTtsService = GeminiTtsService(apiKey: _geminiApiKey!);
     }
     final providerName = prefs.getString('active_provider');
@@ -380,10 +371,16 @@ class AudioGuideService extends ChangeNotifier {
 
   Future<void> togglePause() async {
     if (_state == GuideState.speaking) {
-      await _ttsService.pause();
+      if (_geminiTtsService != null) {
+        await _geminiTtsService!.pause();
+      } else {
+        await _ttsService.pause();
+      }
       _state = GuideState.paused;
     } else if (_state == GuideState.paused) {
-      await _ttsService.speak(_lastResult?.script ?? '');
+      // Resume: replay from cached audio if available
+      const channel = MethodChannel('com.audioguide/audio_player');
+      await channel.invokeMethod('play');
       _state = GuideState.speaking;
     }
     notifyListeners();
