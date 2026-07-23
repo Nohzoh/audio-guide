@@ -60,6 +60,7 @@ class AudioPlayerPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
                 }
             }
             "pause" -> { mediaPlayer?.pause(); result.success(null) }
+            "play" -> { mediaPlayer?.start(); result.success(null) }
             "stop" -> {
                 mediaPlayer?.stop(); mediaPlayer?.release()
                 mediaPlayer = null; result.success(null)
