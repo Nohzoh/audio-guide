@@ -106,17 +106,43 @@ class HistoryEntry {
     ),
   );
 
-  HistoryEntry copyWith({String? audioPath, AnalysisStatus? status, String? ttsModel, String? aiModel}) => HistoryEntry(
+  HistoryEntry copyWith({
+    String? audioPath,
+    AnalysisStatus? status,
+    String? ttsModel,
+    String? aiModel,
+    String? title,
+    String? script,
+    String? locationName,
+    DateTime? analyzedAt,
+    String? analysisSource,
+    String? gpsSource,
+    bool? wikipediaUsed,
+    int? wordCount,
+    int? analysisDurationMs,
+    double? gpsLatitude,
+    double? gpsLongitude,
+    String? gpsAddress,
+  }) => HistoryEntry(
     id: id,
     imagePath: imagePath,
-    title: title,
-    script: script,
-    locationName: locationName,
+    title: title ?? this.title,
+    script: script ?? this.script,
+    locationName: locationName ?? this.locationName,
     audioPath: audioPath ?? this.audioPath,
     createdAt: createdAt,
     status: status ?? this.status,
     ttsModel: ttsModel ?? this.ttsModel,
     aiModel: aiModel ?? this.aiModel,
+    analyzedAt: analyzedAt ?? this.analyzedAt,
+    analysisSource: analysisSource ?? this.analysisSource,
+    gpsSource: gpsSource ?? this.gpsSource,
+    wikipediaUsed: wikipediaUsed ?? this.wikipediaUsed,
+    wordCount: wordCount ?? this.wordCount,
+    analysisDurationMs: analysisDurationMs ?? this.analysisDurationMs,
+    gpsLatitude: gpsLatitude ?? this.gpsLatitude,
+    gpsLongitude: gpsLongitude ?? this.gpsLongitude,
+    gpsAddress: gpsAddress ?? this.gpsAddress,
   );
 }
 
@@ -205,7 +231,6 @@ class HistoryService extends ChangeNotifier {
       status: AnalysisStatus.pending,
     );
     final id = await _db!.insert('history', entry.toMap());
-    final saved = entry.copyWith(status: AnalysisStatus.pending);
     final withId = HistoryEntry(
       id: id,
       imagePath: permanentPath,
