@@ -126,6 +126,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     if (mounted) setState(() => _permissionStatus = guide.lastLocationStatus);
 
+    // Debug: trace metadata values
+    debugPrint('[AudioLens] result: ${result?.title}');
+    debugPrint('[AudioLens] aiModel: ${guide.actualAiModel} / ${guide.lastAiModel}');
+    debugPrint('[AudioLens] gpsSource: ${guide.lastGpsSource}');
+    debugPrint('[AudioLens] gpsLat: ${guide.lastGpsLatitude}');
+    debugPrint('[AudioLens] wikipedia: ${guide.lastWikipediaUsed}');
+    debugPrint('[AudioLens] duration: ${guide.lastAnalysisDurationMs}');
+
     if (result != null) {
       await history.completeEntry(
         entryId: entryId,
