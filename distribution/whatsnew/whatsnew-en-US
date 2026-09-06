@@ -1,1 +1,1 @@
-New: you can attach an existing analysis (photo, script, details) to feedback from Settings. Fixes: the audio progress bar finally works in Gemini API mode, the welcome carousel shows correctly on fresh installs, and several crashes were fixed.
+New: the reading screen now scrolls its whole content (map, actions) together with the text, for a more comfortable read while waiting for audio. Fixes: a few edge cases around feedback with an attached analysis (missing photo, empty analyses).

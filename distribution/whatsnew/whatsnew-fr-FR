@@ -1,1 +1,1 @@
-Nouveautés : vous pouvez joindre une analyse (photo, script, détails) à un feedback depuis Réglages. Corrections : la barre de progression audio fonctionne enfin en mode Gemini API, le carrousel de bienvenue s'affiche correctement sur les nouvelles installations, et plusieurs plantages ont été corrigés.
+Nouveautés : l'écran de lecture fait maintenant défiler tout son contenu (carte, actions) avec le texte, pour lire plus confortablement en attendant l'audio. Corrections : quelques cas limites autour du feedback avec analyse jointe (photo manquante, analyses sans contenu).
