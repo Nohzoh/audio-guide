@@ -56,6 +56,11 @@ class PlayerScreen extends StatefulWidget {
 
 class _PlayerScreenState extends State<PlayerScreen> {
   final ScrollController _scrollController = ScrollController();
+  // #344: measures the rendered height of the location/map/disclosure/
+  // actions/fallback-banners block that now scrolls together with the
+  // script (previously fixed above it, squeezing the reading area) — see
+  // _scrollToProgress for why the auto-scroll math needs this.
+  final _scrollPrefixKey = GlobalKey();
   double _readingProgress = 0.0; // 0.0 to 1.0
   bool _photoMode =
       false; // T14: show the plain photo instead of the overlaid text
@@ -89,11 +94,21 @@ class _PlayerScreenState extends State<PlayerScreen> {
     });
   }
 
+  // #344: the scrollable content is now the location/map/disclosure/
+  // actions/banners block *followed by* the script, not the script alone
+  // — `progress` (0.0-1.0 through the script's own text) can no longer
+  // map directly onto the whole scroll range, or the auto-scroll would
+  // increasingly lag behind the actual reading position by however tall
+  // that leading block renders. Offsetting by its measured height keeps
+  // the same "0% -> just past the header, 100% -> bottom" feel the plain
+  // `maxScroll * progress` gave before that block existed.
   void _scrollToProgress(double progress) {
     if (!_scrollController.hasClients) return;
     final maxScroll = _scrollController.position.maxScrollExtent;
     if (maxScroll <= 0) return;
-    final target = maxScroll * progress;
+    final prefixHeight = _scrollPrefixKey.currentContext?.size?.height ?? 0.0;
+    final scriptRange = (maxScroll - prefixHeight).clamp(0.0, maxScroll);
+    final target = (prefixHeight + scriptRange * progress).clamp(0.0, maxScroll);
     _scrollController.animateTo(
       target,
       duration: const Duration(milliseconds: 500),
@@ -257,7 +272,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                 const SizedBox(height: 8),
                               ],
 
-                              // Title
+                              // Title (#344: stays fixed above the scrollable
+                              // area below — everything else that used to
+                              // sit fixed here (location, map, disclosure,
+                              // actions, fallback banners) now scrolls
+                              // together with the script, which used to be
+                              // squeezed into whatever room was left under
+                              // all of it).
                               if (guide.lastResult != null && !_photoMode) ...[
                                 Text(
                                   guide.lastResult!.title,
@@ -269,106 +290,162 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                   overflow: TextOverflow.ellipsis,
                                 ).animate().fadeIn().slideY(begin: 0.2),
 
-                                if (guide.lastResult!.locationName != null) ...[
-                                  const SizedBox(height: 4),
-                                  Row(children: [
-                                    // #128: white54 read low-contrast against
-                                    // this row's position in the gradient
-                                    // (still ramping up, not yet at the
-                                    // near-opaque floor lower in the column).
-                                    const Icon(Icons.location_on,
-                                        color: Colors.white70, size: 13),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      guide.lastResult!.locationName!,
-                                      style: const TextStyle(
-                                          color: Colors.white70, fontSize: 12),
-                                    ),
-                                  ]),
-                                ],
-
-                                // #126
-                                if (guide.lastGpsLatitude != null &&
-                                    guide.lastGpsLongitude != null) ...[
-                                  const SizedBox(height: 8),
-                                  MiniMap(
-                                    latitude: guide.lastGpsLatitude!,
-                                    longitude: guide.lastGpsLongitude!,
-                                  ),
-                                ],
-
                                 const SizedBox(height: 4),
 
-                                // AI-generated content disclosure — shown
-                                // wherever the AI-generated script/audio is
-                                // actually delivered, not just buried in the
-                                // detail sheet (_AiGeneratedBanner in
-                                // about_analysis_screen.dart, which stays too).
-                                Row(children: [
-                                  // #128: see the location row above for why
-                                  // this moved off white54.
-                                  const Icon(Icons.auto_awesome,
-                                      color: Colors.white70, size: 12),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    l10n.playerAiGeneratedDisclosure,
-                                    style: const TextStyle(
-                                        color: Colors.white70, fontSize: 11),
-                                  ),
-                                ]),
-
-                                const SizedBox(height: 4),
-
-                                // #147: shared with history_screen.dart.
-                                GuideActionRow(
-                                  imagePath: widget.imageFile.path,
-                                  rotationQuarters: widget.rotationQuarters,
-                                  script: guide.lastResult!.script,
-                                  title: guide.lastResult!.title,
-                                  audioPath: guide.lastAudioPath,
-                                  aiModel:
-                                      guide.actualAiModel ?? guide.lastAiModel,
-                                  reportDate: DateTime.now(),
-                                  saveLabel: l10n.playerSave,
-                                  savedSnackbarText: l10n.playerPhotoSaved,
-                                  copyLabel: l10n.playerCopy,
-                                  copiedSnackbarText: l10n.playerTextCopied,
-                                ),
-
-                                const SizedBox(height: 8),
-
-                                // Fallback banners
-                                if (guide.state == GuideState.speaking ||
-                                    guide.state == GuideState.paused) ...[
-                                  if (guide.aiModelWasFallback)
-                                    _FallbackBanner(
-                                      icon: Icons.swap_horiz,
-                                      message: l10n.playerAiFallbackMessage(
-                                          guide.actualAiModel ?? '?'),
-                                      color: Colors.orange,
-                                    ),
-                                  if (guide.ttsWasFallback)
-                                    _FallbackBanner(
-                                      icon: Icons.volume_down,
-                                      message: guide.ttsFallbackWasRateLimit
-                                          ? l10n.playerTtsRateLimitFallback
-                                          : l10n.playerTtsFallback,
-                                      color: Colors.orange,
-                                    ),
-                                  const SizedBox(height: 8),
-                                ],
-
-                                // Scrollable script with reading progress bar
+                                // Scrollable: location, map, AI disclosure,
+                                // actions, fallback banners, then the script
+                                // itself — with the reading progress bar.
                                 Expanded(
                                   child: Stack(
                                     children: [
-                                      // Script text — scrollable by user + auto-scroll
                                       SingleChildScrollView(
                                         controller: _scrollController,
                                         physics: const BouncingScrollPhysics(),
-                                        child: _HighlightedScript(
-                                          text: guide.lastResult!.script,
-                                          progress: _readingProgress,
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Column(
+                                              key: _scrollPrefixKey,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                if (guide.lastResult!
+                                                        .locationName !=
+                                                    null) ...[
+                                                  Row(children: [
+                                                    // #128: white54 read
+                                                    // low-contrast against
+                                                    // this row's position in
+                                                    // the gradient (still
+                                                    // ramping up, not yet at
+                                                    // the near-opaque floor
+                                                    // lower in the column).
+                                                    const Icon(
+                                                        Icons.location_on,
+                                                        color:
+                                                            Colors.white70,
+                                                        size: 13),
+                                                    const SizedBox(width: 4),
+                                                    Text(
+                                                      guide.lastResult!
+                                                          .locationName!,
+                                                      style: const TextStyle(
+                                                          color: Colors
+                                                              .white70,
+                                                          fontSize: 12),
+                                                    ),
+                                                  ]),
+                                                  const SizedBox(height: 8),
+                                                ],
+
+                                                // #126
+                                                if (guide.lastGpsLatitude !=
+                                                        null &&
+                                                    guide.lastGpsLongitude !=
+                                                        null) ...[
+                                                  MiniMap(
+                                                    latitude:
+                                                        guide.lastGpsLatitude!,
+                                                    longitude: guide
+                                                        .lastGpsLongitude!,
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                ],
+
+                                                // AI-generated content
+                                                // disclosure — shown wherever
+                                                // the AI-generated script/
+                                                // audio is actually
+                                                // delivered, not just buried
+                                                // in the detail sheet
+                                                // (_AiGeneratedBanner in
+                                                // about_analysis_screen.dart,
+                                                // which stays too).
+                                                Row(children: [
+                                                  // #128: see the location
+                                                  // row above for why this
+                                                  // moved off white54.
+                                                  const Icon(
+                                                      Icons.auto_awesome,
+                                                      color: Colors.white70,
+                                                      size: 12),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    l10n
+                                                        .playerAiGeneratedDisclosure,
+                                                    style: const TextStyle(
+                                                        color:
+                                                            Colors.white70,
+                                                        fontSize: 11),
+                                                  ),
+                                                ]),
+
+                                                const SizedBox(height: 4),
+
+                                                // #147: shared with
+                                                // history_screen.dart.
+                                                GuideActionRow(
+                                                  imagePath:
+                                                      widget.imageFile.path,
+                                                  rotationQuarters:
+                                                      widget.rotationQuarters,
+                                                  script:
+                                                      guide.lastResult!.script,
+                                                  title:
+                                                      guide.lastResult!.title,
+                                                  audioPath:
+                                                      guide.lastAudioPath,
+                                                  aiModel:
+                                                      guide.actualAiModel ??
+                                                          guide.lastAiModel,
+                                                  reportDate: DateTime.now(),
+                                                  saveLabel: l10n.playerSave,
+                                                  savedSnackbarText:
+                                                      l10n.playerPhotoSaved,
+                                                  copyLabel: l10n.playerCopy,
+                                                  copiedSnackbarText:
+                                                      l10n.playerTextCopied,
+                                                ),
+
+                                                const SizedBox(height: 8),
+
+                                                // Fallback banners
+                                                if (guide.state ==
+                                                        GuideState.speaking ||
+                                                    guide.state ==
+                                                        GuideState
+                                                            .paused) ...[
+                                                  if (guide.aiModelWasFallback)
+                                                    _FallbackBanner(
+                                                      icon: Icons.swap_horiz,
+                                                      message: l10n
+                                                          .playerAiFallbackMessage(
+                                                              guide.actualAiModel ??
+                                                                  '?'),
+                                                      color: Colors.orange,
+                                                    ),
+                                                  if (guide.ttsWasFallback)
+                                                    _FallbackBanner(
+                                                      icon:
+                                                          Icons.volume_down,
+                                                      message: guide
+                                                              .ttsFallbackWasRateLimit
+                                                          ? l10n
+                                                              .playerTtsRateLimitFallback
+                                                          : l10n
+                                                              .playerTtsFallback,
+                                                      color: Colors.orange,
+                                                    ),
+                                                  const SizedBox(height: 8),
+                                                ],
+                                              ],
+                                            ),
+                                            _HighlightedScript(
+                                              text: guide.lastResult!.script,
+                                              progress: _readingProgress,
+                                            ),
+                                          ],
                                         ),
                                       ),
 

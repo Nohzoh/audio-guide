@@ -16,6 +16,11 @@ by referencing it (`Closes #<n>`) in the PR that resolves it.
 
 ## ✅ Done
 
+- [x] ✨ ⭐ - **Scroll the whole content block with the script on PlayerScreen, not just the title** (issue #344)
+  - **Verified**: 2026-09-06 (PR #345)
+  - **What was done**: while waiting for audio, the script was already readable but had very little room to scroll in — the title, location row, mini map, AI disclosure, action row, and fallback banners all sat fixed above a small `Expanded` containing only the script. Now only the title stays fixed; everything else scrolls together with the script, freeing up most of the screen for reading. `_scrollToProgress`'s auto-scroll math now offsets by the measured height of that leading block (a new `_scrollPrefixKey`) so 0%/100% still land at the same places as before.
+  - **Final validation**: `flutter analyze` → 0 issues; `flutter test` → 412/412 (no regressions; no existing test asserted on the exact fixed/scrollable boundary). Dart-only change, no native Kotlin touched. Live on-device verification of the new layout with real analysis content was blocked in this environment by an invalid/expired Gemini API key — confirmed correct via code review of the resulting widget tree instead.
+
 - [x] 🔧 ⭐ - **Persist a shown/dismissed breadcrumb for the whats-new dialog** (issue #312)
   - **Verified**: 2026-09-05 (PR #342)
   - **What was done**: diagnostic follow-up on the third reported occurrence of #312 (dialog missing/disappearing after an update). `AppLogger`'s buffer is in-memory and never survives the process restart #312's own reports keep implicating, so there's no way to confirm "shown but lost" vs. "never attempted" from the next session's logs alone. `SettingsService` now persists `whatsNewShownVersion`/`whatsNewDismissedVersion`; `HomeScreen._checkWhatsNew()` logs clear evidence when they mismatch. Purely diagnostic — doesn't change whether/when the dialog shows.
