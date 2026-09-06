@@ -16,6 +16,11 @@ by referencing it (`Closes #<n>`) in the PR that resolves it.
 
 ## ✅ Done
 
+- [x] 🐛 ⭐⭐ - **Only mark whats-new seen once the user actually dismisses it** (issue #312)
+  - **Verified**: 2026-09-07 (PR #349)
+  - **What was done**: root cause finally confirmed by the #342 breadcrumb diagnostic in a real production log (v0.12.1): the dialog was shown but never recorded as dismissed, yet the very next launch already said "already seen, skipping". `_checkWhatsNew()` was calling `recordSeenVersion(currentVersion)` right after the release-notes text loaded, before ever attempting to show the dialog — if the dialog was then lost before the user could tap OK (a startup-timing race, e.g. with Android's flexible in-app-update restart), the version was permanently marked seen and the user could never see it again. `recordSeenVersion` now only runs once the user taps OK (alongside `recordWhatsNewDismissed`), or in the empty/corrupt-asset branch where nothing was ever attempted — a lost dialog now retries on the next launch instead of giving up forever.
+  - **Final validation**: `flutter analyze` → 0 issues; `flutter test` → 413/413 (2 existing tests updated for the new timing, 1 new regression test). Dart-only change, no native Kotlin touched.
+
 - [x] 🐛 ⭐ - **Filter the feedback analysis picker to completed entries only** (issue #318)
   - **Verified**: 2026-09-06 (PR #347)
   - **What was done**: found by a global code-review pass on PR #316 (#315: attach an analysis to feedback). `_pickAnalysis` listed `HistoryService.entries` unfiltered — pending, captured, and failed entries all have an empty script and null model/timing details, so attaching one silently sent a feedback report with a photo but no exploitable content. Now filters to `AnalysisStatus.complete` only.

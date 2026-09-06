@@ -173,10 +173,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       AppLogger.error('Failed to load whats-new asset: ${sanitizeError(e.toString())}');
     }
 
-    // Recorded regardless of whether the text loaded — a missing/corrupt
-    // asset shouldn't leave the device re-checking (and failing) forever.
-    await settings.recordSeenVersion(currentVersion);
     if (!mounted || text == null || text.isEmpty) {
+      // Nothing was actually shown here — either the asset is missing/
+      // corrupt (shouldn't leave the device re-checking, and failing,
+      // forever) or the screen went away before the check finished. Only
+      // this branch marks the version seen; the success path below defers
+      // that to the user actually dismissing the dialog (see #312 below).
+      await settings.recordSeenVersion(currentVersion);
       AppLogger.info(
           'Whats-new: not showing for $currentVersion (previously $lastSeen) — text empty or unmounted');
       return;
@@ -206,6 +209,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           TextButton(
             onPressed: () {
               settings.recordWhatsNewDismissed(currentVersion);
+              // #312 root cause: this used to be called unconditionally
+              // before the dialog ever showed, right after the asset
+              // loaded. If the dialog was shown then lost before the user
+              // could dismiss it (splashscreen/startup timing race — see
+              // this method's own doc history), the version was already
+              // marked seen, so every later launch's `lastSeen ==
+              // currentVersion` check above skipped retrying forever —
+              // the user could never actually see it. Recording seen only
+              // here, alongside dismissed, makes the app keep offering
+              // the dialog on every launch until the user truly
+              // acknowledges it.
+              settings.recordSeenVersion(currentVersion);
               Navigator.of(dialogContext).pop();
             },
             child: Text(l10n.commonOk),
