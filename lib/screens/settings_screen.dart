@@ -997,6 +997,20 @@ class _FeedbackDialogState extends State<_FeedbackDialog> {
     final fullText =
         analysisEntry != null ? '$text\n${_formatAttachedAnalysis(analysisEntry)}' : text;
 
+    // #319: an attached analysis's photo can be gone from disk (external
+    // storage cleanup, a manual deletion, an orphaned DB row after a file
+    // loss outside deleteEntry's normal flow) — without this check,
+    // MultipartFile.fromPath below throws and the user only sees the
+    // generic send-failed error, with no hint that removing the attached
+    // analysis is what would fix it.
+    if (analysisEntry != null && !File(analysisEntry.imagePath).existsSync()) {
+      setState(() {
+        _sending = false;
+        _error = AppLocalizations.of(context)!.feedbackDialogAnalysisImageMissing;
+      });
+      return;
+    }
+
     try {
       // #328: the details text above deliberately omits GPS coordinates —
       // the photo itself must not silently reintroduce them via EXIF.

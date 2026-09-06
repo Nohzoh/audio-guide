@@ -404,6 +404,61 @@ void main() {
       expect(body, isNot(contains('EXIF_MARKER')));
     });
 
+    // #319
+    testWidgets('shows a specific error and sends nothing when the attached '
+        "analysis's photo is missing from disk", (tester) async {
+      final placeholder = img.Image(width: 4, height: 4);
+      img.fill(placeholder, color: img.ColorRgb8(80, 40, 160));
+      final imagePath = '${tmpDir.path}/vanished.jpg';
+      File(imagePath).writeAsBytesSync(img.encodeJpg(placeholder));
+
+      final entry =
+          await tester.runAsync(() => history.addPendingEntry(imagePath: imagePath));
+      await tester.runAsync(() => history.completeEntry(
+            entryId: entry!.id!,
+            title: 'Tour Eiffel',
+            script: 'Un monument emblematique.',
+          ));
+      // Simulates the file disappearing after the entry was created —
+      // external storage cleanup, a manual deletion, anything outside
+      // deleteEntry's normal flow. addPendingEntry copies the source photo
+      // to its own permanent path, so the file to delete is entry.imagePath,
+      // not the original imagePath passed in above.
+      File(entry!.imagePath).deleteSync();
+
+      final requests = <http.BaseRequest>[];
+      final client = MockClient((request) async {
+        requests.add(request);
+        return http.Response('{"ok":true}', 200);
+      });
+
+      await tester.pumpWidget(wrapConfiguredScreen(client));
+      await tester.pumpAndSettle();
+
+      final button = find.text('Envoyer un feedback');
+      await tester.scrollUntilVisible(button, 300, scrollable: find.byType(Scrollable).first);
+      await tester.tap(button);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Joindre une analyse'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Tour Eiffel'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'Le titre est faux');
+      await tester.tap(find.widgetWithText(FilledButton, 'Envoyer'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(
+            "La photo de l'analyse jointe est introuvable. Retirez-la pour pouvoir envoyer votre feedback."),
+        findsOneWidget,
+      );
+      expect(requests, isEmpty);
+      // Dialog stayed open, still showing the attached (now-broken) entry.
+      expect(find.text("Changer l'analyse"), findsOneWidget);
+    });
+
     testWidgets("shows an empty state in the picker when history has no entries",
         (tester) async {
       final client = MockClient((request) async => http.Response('{"ok":true}', 200));

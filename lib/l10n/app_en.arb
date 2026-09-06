@@ -184,6 +184,7 @@
   "feedbackDialogRemoveAnalysis": "Remove analysis",
   "feedbackDialogSelectAnalysisTitle": "Choose an analysis",
   "feedbackDialogNoAnalyses": "No analyses in history",
+  "feedbackDialogAnalysisImageMissing": "The attached analysis's photo can't be found. Remove it to send your feedback.",
   "settingsShowKofiButton": "Show the support button",
   "settingsKofiButtonSubtitle": "Ko-fi button in the interface",
   "settingsAutoGenerateAudio": "Generate audio automatically",

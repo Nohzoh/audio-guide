@@ -214,6 +214,7 @@
   "feedbackDialogRemoveAnalysis": "Retirer l'analyse",
   "feedbackDialogSelectAnalysisTitle": "Choisir une analyse",
   "feedbackDialogNoAnalyses": "Aucune analyse dans l'historique",
+  "feedbackDialogAnalysisImageMissing": "La photo de l'analyse jointe est introuvable. Retirez-la pour pouvoir envoyer votre feedback.",
   "settingsShowKofiButton": "Afficher le bouton de soutien",
   "settingsKofiButtonSubtitle": "Bouton Ko-fi dans l'interface",
   "settingsAutoGenerateAudio": "Générer l'audio automatiquement",
