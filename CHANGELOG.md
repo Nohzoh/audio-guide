@@ -16,6 +16,11 @@ by referencing it (`Closes #<n>`) in the PR that resolves it.
 
 ## ✅ Done
 
+- [x] 🐛 ⭐ - **Show a specific error when an attached analysis's photo is missing from disk** (issue #319)
+  - **Verified**: 2026-09-06 (PR #346)
+  - **What was done**: found by a global code-review pass on PR #316 (#315: attach an analysis to feedback). `_FeedbackDialogState._send()` built `File(analysisEntry.imagePath)` and handed it to `FeedbackService.send()` without checking it still exists on disk. If the photo was gone (external storage cleanup, a manual deletion, an orphaned DB row after a file loss outside `deleteEntry`'s normal flow), the multipart upload threw and the user only saw the generic send-failed error, with no hint that removing the attachment would fix it. Now checks `existsSync()` first and shows a dedicated message instead of attempting the send.
+  - **Final validation**: `flutter analyze` → 0 issues; `flutter test` → 413/413 (1 new test). Dart-only change, no native Kotlin touched.
+
 - [x] ✨ ⭐ - **Scroll the whole content block with the script on PlayerScreen, not just the title** (issue #344)
   - **Verified**: 2026-09-06 (PR #345)
   - **What was done**: while waiting for audio, the script was already readable but had very little room to scroll in — the title, location row, mini map, AI disclosure, action row, and fallback banners all sat fixed above a small `Expanded` containing only the script. Now only the title stays fixed; everything else scrolls together with the script, freeing up most of the screen for reading. `_scrollToProgress`'s auto-scroll math now offsets by the measured height of that leading block (a new `_scrollPrefixKey`) so 0%/100% still land at the same places as before.
