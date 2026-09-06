@@ -16,6 +16,11 @@ by referencing it (`Closes #<n>`) in the PR that resolves it.
 
 ## ✅ Done
 
+- [x] 🐛 ⭐ - **Filter the feedback analysis picker to completed entries only** (issue #318)
+  - **Verified**: 2026-09-06 (PR #347)
+  - **What was done**: found by a global code-review pass on PR #316 (#315: attach an analysis to feedback). `_pickAnalysis` listed `HistoryService.entries` unfiltered — pending, captured, and failed entries all have an empty script and null model/timing details, so attaching one silently sent a feedback report with a photo but no exploitable content. Now filters to `AnalysisStatus.complete` only.
+  - **Final validation**: `flutter analyze` → 0 issues; `flutter test` → 413/413 (1 new test). Dart-only change, no native Kotlin touched.
+
 - [x] 🐛 ⭐ - **Show a specific error when an attached analysis's photo is missing from disk** (issue #319)
   - **Verified**: 2026-09-06 (PR #346)
   - **What was done**: found by a global code-review pass on PR #316 (#315: attach an analysis to feedback). `_FeedbackDialogState._send()` built `File(analysisEntry.imagePath)` and handed it to `FeedbackService.send()` without checking it still exists on disk. If the photo was gone (external storage cleanup, a manual deletion, an orphaned DB row after a file loss outside `deleteEntry`'s normal flow), the multipart upload threw and the user only saw the generic send-failed error, with no hint that removing the attachment would fix it. Now checks `existsSync()` first and shows a dedicated message instead of attempting the send.
