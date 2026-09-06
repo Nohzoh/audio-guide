@@ -281,18 +281,32 @@ void main() {
       await pumpHome(tester);
 
       expect(find.text('Nouveautés'), findsOneWidget);
+      // #312: lastSeenVersion isn't recorded until the dialog is actually
+      // dismissed (see the next test) — it must still be null right after
+      // showing, not stamped the moment the dialog goes up.
+      expect(settings.lastSeenVersion, isNull);
+
+      await tester.tap(find.text('OK'));
+      await tester.pump();
       expect(settings.lastSeenVersion, '9.9.9');
     });
 
     testWidgets('shown once when the stored last-seen version differs from '
-        'the current one, then records the current version', (tester) async {
+        'the current one, then records the current version only once '
+        'dismissed', (tester) async {
       await settings.recordSeenVersion('0.0.1');
 
       await pumpHome(tester);
 
       expect(find.text('Nouveautés'), findsOneWidget);
       expect(find.text(whatsNewText), findsOneWidget);
-      expect(settings.lastSeenVersion, '9.9.9');
+      // #312 root cause: lastSeenVersion used to be stamped the moment the
+      // asset loaded, before the dialog could even show — if the dialog
+      // was then lost before the user dismissed it (the actual bug),
+      // every later launch's "already seen" check skipped retrying
+      // forever, and the user could never actually see it. It must stay
+      // at the previous version until dismissal actually happens.
+      expect(settings.lastSeenVersion, '0.0.1');
       // #312 diagnostic breadcrumb: recorded as shown as soon as the
       // dialog goes up, dismissed only once OK is actually tapped.
       expect(settings.whatsNewShownVersion, '9.9.9');
@@ -302,6 +316,28 @@ void main() {
       await tester.pump();
       expect(find.text('Nouveautés'), findsNothing);
       expect(settings.whatsNewDismissedVersion, '9.9.9');
+      expect(settings.lastSeenVersion, '9.9.9');
+    });
+
+    // #312: this is the actual bug — the dialog getting lost/rebuilt away
+    // before the user could tap OK (e.g. the startup-timing race with
+    // Android's flexible-update restart) used to permanently mark the
+    // version "seen" anyway, so the user could never see it again. Now
+    // that lastSeenVersion is only recorded on dismissal, a launch that
+    // never reaches the dismiss handler must retry on the next one.
+    testWidgets('if the dialog never gets dismissed (lost before the user '
+        'could tap OK), the next launch shows it again instead of giving '
+        'up forever', (tester) async {
+      await settings.recordSeenVersion('0.0.1');
+
+      await pumpHome(tester);
+      expect(find.text('Nouveautés'), findsOneWidget);
+      // Simulates the dialog being lost mid-startup — no OK tap, straight
+      // to the next launch.
+
+      await pumpHome(tester);
+
+      expect(find.text('Nouveautés'), findsOneWidget);
     });
 
     testWidgets('not shown again once the stored version already matches '
