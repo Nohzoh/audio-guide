@@ -913,7 +913,14 @@ class _FeedbackDialogState extends State<_FeedbackDialog> {
 
   Future<void> _pickAnalysis() async {
     final l10n = AppLocalizations.of(context)!;
-    final entries = widget.history.entries;
+    // #318: pending/captured/failed entries have an empty script and null
+    // model/timing details (never populated until an analysis actually
+    // completes) — attaching one would silently send a feedback report
+    // with a photo but no exploitable content, defeating the point of the
+    // feature. Only a finished analysis has something worth attaching.
+    final entries = widget.history.entries
+        .where((e) => e.status == AnalysisStatus.complete)
+        .toList();
     final selected = await showDialog<HistoryEntry>(
       context: context,
       builder: (dialogContext) => AlertDialog(

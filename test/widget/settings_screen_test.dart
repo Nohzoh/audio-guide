@@ -459,6 +459,55 @@ void main() {
       expect(find.text("Changer l'analyse"), findsOneWidget);
     });
 
+    // #318
+    testWidgets('the analysis picker only lists completed entries, hiding '
+        'pending/captured/failed ones that have no script yet', (tester) async {
+      final placeholder = img.Image(width: 4, height: 4);
+      img.fill(placeholder, color: img.ColorRgb8(80, 40, 160));
+
+      final completeImagePath = '${tmpDir.path}/complete.jpg';
+      File(completeImagePath).writeAsBytesSync(img.encodeJpg(placeholder));
+      final completeEntry = await tester
+          .runAsync(() => history.addPendingEntry(imagePath: completeImagePath));
+      await tester.runAsync(() => history.completeEntry(
+            entryId: completeEntry!.id!,
+            title: 'Tour Eiffel',
+            script: 'Un monument emblematique.',
+          ));
+
+      final pendingImagePath = '${tmpDir.path}/pending.jpg';
+      File(pendingImagePath).writeAsBytesSync(img.encodeJpg(placeholder));
+      await tester.runAsync(() => history.addPendingEntry(imagePath: pendingImagePath));
+
+      final capturedImagePath = '${tmpDir.path}/captured.jpg';
+      File(capturedImagePath).writeAsBytesSync(img.encodeJpg(placeholder));
+      await tester.runAsync(() => history.addCapturedEntry(imagePath: capturedImagePath));
+
+      final failedImagePath = '${tmpDir.path}/failed.jpg';
+      File(failedImagePath).writeAsBytesSync(img.encodeJpg(placeholder));
+      final failedEntry = await tester
+          .runAsync(() => history.addPendingEntry(imagePath: failedImagePath));
+      await tester.runAsync(() => history.failEntry(failedEntry!.id!));
+
+      final client = MockClient((request) async => http.Response('{"ok":true}', 200));
+
+      await tester.pumpWidget(wrapConfiguredScreen(client));
+      await tester.pumpAndSettle();
+
+      final button = find.text('Envoyer un feedback');
+      await tester.scrollUntilVisible(button, 300, scrollable: find.byType(Scrollable).first);
+      await tester.tap(button);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Joindre une analyse'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Tour Eiffel'), findsOneWidget);
+      expect(find.text('Analyse en attente...'), findsNothing);
+      expect(find.text('Capturé — analyse à lancer'), findsNothing);
+      expect(find.text('Analyse échouée'), findsNothing);
+    });
+
     testWidgets("shows an empty state in the picker when history has no entries",
         (tester) async {
       final client = MockClient((request) async => http.Response('{"ok":true}', 200));
