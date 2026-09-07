@@ -16,7 +16,7 @@ by referencing it (`Closes #<n>`) in the PR that resolves it.
 
 ## ✅ Done
 
-- [x] ✨ ⭐ - **Render the whats-new dialog with structured sections**
+- [x] ✨ ⭐ - **Render the whats-new dialog with structured sections** (issue #357)
   - **Verified**: 2026-09-07 (PR #356)
   - **What was done**: direct request — the dialog used to dump the `ship` skill's whole release-notes paragraph into one flat, unformatted `Text` widget. A new `whats_new_parser.dart` splits it into distinct labeled sections (Nouveautés/New, Corrections/Fixes, Améliorations/Improvements) each with its own icon and bold label, falling back to a single unlabeled section for any other format. Also adds a header icon and the version number as a subtitle.
   - **Final validation**: `flutter analyze` → 0 issues; `flutter test` → 455/455 (5 new tests). Verified visually on-device on the emulator. Dart-only change, no native Kotlin touched.
