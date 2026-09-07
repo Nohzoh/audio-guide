@@ -16,6 +16,11 @@ by referencing it (`Closes #<n>`) in the PR that resolves it.
 
 ## ✅ Done
 
+- [x] 🔧 ⭐ - **Make an associated issue mandatory for every landed change** (issue #359)
+  - **Verified**: 2026-09-08 (PR #360)
+  - **What was done**: PR #356 merged without a tracking issue — a direct conversational request handled without going through GitHub issues. `AGENTS.md` now makes explicit that every change merged to `main` must reference an issue (filed first if none exists), with `ship`'s own version-bump PRs as the only exemption. The local `land` skill definition was updated the same way.
+  - **Final validation**: docs-only change.
+
 - [x] ✨ ⭐ - **Render the whats-new dialog with structured sections** (issue #357)
   - **Verified**: 2026-09-07 (PR #356)
   - **What was done**: direct request — the dialog used to dump the `ship` skill's whole release-notes paragraph into one flat, unformatted `Text` widget. A new `whats_new_parser.dart` splits it into distinct labeled sections (Nouveautés/New, Corrections/Fixes, Améliorations/Improvements) each with its own icon and bold label, falling back to a single unlabeled section for any other format. Also adds a header icon and the version number as a subtitle.
