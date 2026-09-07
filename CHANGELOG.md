@@ -16,6 +16,11 @@ by referencing it (`Closes #<n>`) in the PR that resolves it.
 
 ## ✅ Done
 
+- [x] 🔧 ⭐ - **Require issues to be written in English** (issue #361)
+  - **Verified**: 2026-09-08 (PR #362)
+  - **What was done**: many issues filed recently were written in French (matching the conversation language with the user). `AGENTS.md` now states explicitly that issues (title and body) are always written in English, regardless of conversation language — same as commit messages. The local `land` skill definition was updated the same way.
+  - **Final validation**: docs-only change.
+
 - [x] 🔧 ⭐ - **Make an associated issue mandatory for every landed change** (issue #359)
   - **Verified**: 2026-09-08 (PR #360)
   - **What was done**: PR #356 merged without a tracking issue — a direct conversational request handled without going through GitHub issues. `AGENTS.md` now makes explicit that every change merged to `main` must reference an issue (filed first if none exists), with `ship`'s own version-bump PRs as the only exemption. The local `land` skill definition was updated the same way.
