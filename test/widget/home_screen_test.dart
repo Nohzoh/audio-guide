@@ -11,6 +11,7 @@ import 'package:audiolens/screens/home_screen.dart';
 import 'package:audiolens/services/audio_guide_service.dart';
 import 'package:audiolens/services/history_service.dart';
 import 'package:audiolens/services/settings_service.dart';
+import 'package:audiolens/utils/whats_new_parser.dart';
 import '../support/service_fakes.dart';
 
 /// T105 — smoke-level coverage only for HomeScreen: it's by far the
@@ -280,7 +281,7 @@ void main() {
 
       await pumpHome(tester);
 
-      expect(find.text('Nouveautés'), findsOneWidget);
+      expect(find.text('Nouveautés'), findsWidgets);
       // #312: lastSeenVersion isn't recorded until the dialog is actually
       // dismissed (see the next test) — it must still be null right after
       // showing, not stamped the moment the dialog goes up.
@@ -298,8 +299,15 @@ void main() {
 
       await pumpHome(tester);
 
-      expect(find.text('Nouveautés'), findsOneWidget);
-      expect(find.text(whatsNewText), findsOneWidget);
+      expect(find.text('Nouveautés'), findsWidgets);
+      // #(rendering improvement): the dialog now renders each labeled
+      // section (Nouveautés/Corrections/Améliorations) as its own Text
+      // widget instead of dumping the whole file as one flat paragraph —
+      // check each section's content individually rather than the raw
+      // whatsNewText string as a single widget.
+      for (final section in parseWhatsNewSections(whatsNewText)) {
+        expect(find.text(section.content), findsOneWidget);
+      }
       // #312 root cause: lastSeenVersion used to be stamped the moment the
       // asset loaded, before the dialog could even show — if the dialog
       // was then lost before the user dismissed it (the actual bug),
@@ -331,13 +339,13 @@ void main() {
       await settings.recordSeenVersion('0.0.1');
 
       await pumpHome(tester);
-      expect(find.text('Nouveautés'), findsOneWidget);
+      expect(find.text('Nouveautés'), findsWidgets);
       // Simulates the dialog being lost mid-startup — no OK tap, straight
       // to the next launch.
 
       await pumpHome(tester);
 
-      expect(find.text('Nouveautés'), findsOneWidget);
+      expect(find.text('Nouveautés'), findsWidgets);
     });
 
     testWidgets('not shown again once the stored version already matches '
@@ -361,7 +369,7 @@ void main() {
 
       await pumpHome(tester);
 
-      expect(find.text('Nouveautés'), findsOneWidget);
+      expect(find.text('Nouveautés'), findsWidgets);
       expect(settings.whatsNewShownVersion, '9.9.9');
     });
   });
@@ -436,7 +444,7 @@ void main() {
 
       await pumpHome(tester);
 
-      expect(find.text('Nouveautés'), findsOneWidget);
+      expect(find.text('Nouveautés'), findsWidgets);
       expect(find.text(firstTipText), findsNothing);
     });
 
