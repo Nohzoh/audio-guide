@@ -78,6 +78,17 @@ class LocationContextResolver {
   final PoiService _poiService;
   final http.Client? _httpClient;
 
+  /// #137: repeat visits to the same coordinates (retrying an analysis,
+  /// revisiting the same room) used to re-fetch POI/Wikidata/Wikipedia
+  /// from scratch every time. In-memory only (lives as long as this
+  /// resolver — one instance per app session, see AudioGuideService's
+  /// constructor) and keyed on lat/lon rounded to 4 decimal places
+  /// (~11m) — good enough for "the same place", not meant to be exact.
+  /// Capped with a TTL so a POI's tags or a Wikipedia article changing
+  /// doesn't stay stale for the rest of the session.
+  static const _cacheTtl = Duration(hours: 24);
+  final _enrichmentCache = <String, _CachedEnrichment>{};
+
   Future<LocationContext> resolve(File imageFile) async {
     final exifCoords = await ExifLocationService.readGpsFromImage(imageFile);
     LocationResult locationResult;
@@ -127,46 +138,81 @@ class LocationContextResolver {
     if (locationResult.info != null) {
       final lat = locationResult.info!.latitude;
       final lon = locationResult.info!.longitude;
+      final cacheKey = '${lat.toStringAsFixed(4)},${lon.toStringAsFixed(4)}';
+      final cached = _enrichmentCache[cacheKey];
 
-      poi = await _poiService.findNearby(
-        lat: lat,
-        lon: lon,
-        radius: cfg.poiRadiusMeters,
-        timeoutSeconds: cfg.poiTimeoutSeconds,
-        maxAttempts: cfg.poiMaxAttempts,
-      );
-
-      if (poi?.wikidataId != null) {
-        wikidataInfo = await WikidataService.fetchInfo(poi!.wikidataId!, client: _httpClient);
-      }
-
-      wikiResults = await WikipediaService.searchNearby(
-        lat: lat,
-        lon: lon,
-        radius: cfg.wikipediaRadiusMeters,
-        limit: cfg.wikipediaMaxResults,
-        extractChars: cfg.wikipediaExtractChars,
-        client: _httpClient,
-      );
-
-      if (poi != null) {
-        final nameQuery = [poi.name, locationResult.info!.city].where((s) => s != null && s.isNotEmpty).join(' ');
-        final nameResults = await WikipediaService.searchByName(
-          query: nameQuery,
+      if (cached != null && DateTime.now().difference(cached.fetchedAt) < _cacheTtl) {
+        poi = cached.poi;
+        wikidataInfo = cached.wikidataInfo;
+        wikiResults = cached.wikiResults;
+      } else {
+        // #137: POI lookup and the Wikipedia geosearch only need lat/lon
+        // — neither depends on the other's result — so both are kicked
+        // off together instead of waiting on each other. Wikidata and
+        // the name-matched Wikipedia search *do* depend on the POI (its
+        // wikidataId / name), so they can only start once it resolves,
+        // but they're independent of *each other* and of the geosearch
+        // still in flight, so they're kicked off together too.
+        final poiFuture = _poiService.findNearby(
+          lat: lat,
+          lon: lon,
+          radius: cfg.poiRadiusMeters,
+          timeoutSeconds: cfg.poiTimeoutSeconds,
+          maxAttempts: cfg.poiMaxAttempts,
+        );
+        final wikiNearbyFuture = WikipediaService.searchNearby(
+          lat: lat,
+          lon: lon,
+          radius: cfg.wikipediaRadiusMeters,
           limit: cfg.wikipediaMaxResults,
           extractChars: cfg.wikipediaExtractChars,
           client: _httpClient,
         );
-        // #247: name-matched results first, not appended after the
-        // generic-proximity ones — searchNearby's geosearch ranks purely
-        // by distance, which can put a broader article (e.g. the
-        // surrounding town) ahead of the specific place actually being
-        // photographed if the town's own Wikipedia geotag happens to sit
-        // just as close. A downstream character budget (Nano's prompt,
-        // GeminiNanoService._maxLocationContextChars) can then truncate
-        // away the more relevant, name-matched extract entirely — this
-        // ordering makes sure it isn't the one paying that cost.
-        wikiResults = WikipediaService.merge(nameResults, wikiResults);
+
+        poi = await poiFuture;
+        // Captured into a local so the null-checks below promote reliably
+        // — `poi` itself is a mutable outer variable, reassigned above
+        // across an `await`, which the analyzer won't promote through.
+        final resolvedPoi = poi;
+
+        final wikidataFuture = resolvedPoi?.wikidataId != null
+            ? WikidataService.fetchInfo(resolvedPoi!.wikidataId!, client: _httpClient)
+            : Future<WikidataInfo?>.value(null);
+        final nameQuery = resolvedPoi != null
+            ? [resolvedPoi.name, locationResult.info!.city].where((s) => s != null && s.isNotEmpty).join(' ')
+            : null;
+        final wikiNameFuture = nameQuery != null
+            ? WikipediaService.searchByName(
+                query: nameQuery,
+                limit: cfg.wikipediaMaxResults,
+                extractChars: cfg.wikipediaExtractChars,
+                client: _httpClient,
+              )
+            : Future<List<WikipediaResult>>.value(const []);
+
+        wikiResults = await wikiNearbyFuture;
+        wikidataInfo = await wikidataFuture;
+        final nameResults = await wikiNameFuture;
+
+        if (poi != null) {
+          // #247: name-matched results first, not appended after the
+          // generic-proximity ones — searchNearby's geosearch ranks purely
+          // by distance, which can put a broader article (e.g. the
+          // surrounding town) ahead of the specific place actually being
+          // photographed if the town's own Wikipedia geotag happens to sit
+          // just as close. A downstream character budget (Nano's prompt,
+          // GeminiNanoService._maxLocationContextChars) can then truncate
+          // away the more relevant, name-matched extract entirely — this
+          // ordering makes sure it isn't the one paying that cost.
+          wikiResults = WikipediaService.merge(nameResults, wikiResults);
+        }
+
+        _enrichmentCache[cacheKey] = _CachedEnrichment(
+          fetchedAt: DateTime.now(),
+          poi: poi,
+          wikidataInfo: wikidataInfo,
+          wikiResults: wikiResults,
+        );
       }
 
       if (wikiResults.isNotEmpty) {
@@ -212,4 +258,19 @@ class LocationContextResolver {
     }
     return line;
   }
+}
+
+/// #137: a past enrichment result, cached by coordinates.
+class _CachedEnrichment {
+  const _CachedEnrichment({
+    required this.fetchedAt,
+    required this.poi,
+    required this.wikidataInfo,
+    required this.wikiResults,
+  });
+
+  final DateTime fetchedAt;
+  final PoiInfo? poi;
+  final WikidataInfo? wikidataInfo;
+  final List<WikipediaResult> wikiResults;
 }
