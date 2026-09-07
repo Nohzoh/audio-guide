@@ -1,1 +1,1 @@
-New: the reading screen now scrolls its whole content (map, actions) together with the text, for a more comfortable read while waiting for audio. Fixes: a few edge cases around feedback with an attached analysis (missing photo, empty analyses).
+New: discreet tips occasionally appear on startup to help you discover features. Fixes: the "what's new" message after an update now shows up reliably.
