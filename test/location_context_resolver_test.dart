@@ -302,4 +302,81 @@ void main() {
       expect(ctx.wikipediaResults.first.extract, 'Une commune.');
     });
   });
+
+  // #137
+  group('enrichment cache', () {
+    // Only counts POI/Wikipedia requests — the cache covers POI/Wikidata/
+    // Wikipedia enrichment, not the separate reverse-geocoding call, which
+    // still fires on every resolveFromCoordinates regardless (T78's own
+    // sequencing, unrelated to this cache).
+    http.Client countingClient(Map<String, dynamic> overpassTags, List<int> enrichmentRequestCount) {
+      return MockClient((request) async {
+        final uri = request.url;
+        if (uri.host == 'nominatim.openstreetmap.org') {
+          return http.Response(jsonEncode({'address': {}}), 200);
+        }
+        if (uri.host == 'overpass-api.de') {
+          enrichmentRequestCount[0]++;
+          return http.Response(
+            jsonEncode({
+              'elements': [
+                {'type': 'node', 'lat': 48.85, 'lon': 2.47, 'tags': overpassTags},
+              ],
+            }),
+            200,
+          );
+        }
+        if (uri.host.endsWith('wikipedia.org')) {
+          enrichmentRequestCount[0]++;
+          if (uri.queryParameters['list'] == 'geosearch') {
+            return http.Response(jsonEncode({'query': {'geosearch': []}}), 200);
+          }
+          if (uri.queryParameters['list'] == 'search') {
+            return http.Response(jsonEncode({'query': {'search': []}}), 200);
+          }
+        }
+        return http.Response('{}', 404);
+      });
+    }
+
+    test('a second resolve for the same coordinates reuses the cached '
+        'result instead of re-fetching POI/Wikipedia', () async {
+      final enrichmentRequestCount = [0];
+      final client =
+          countingClient({'amenity': 'restaurant', 'name': 'Chez Paul'}, enrichmentRequestCount);
+      final resolver = LocationContextResolver(
+        poiService: PoiService(client: client),
+        httpClient: client,
+      );
+
+      final first = await resolver.resolveFromCoordinates(lat: 48.85, lon: 2.47, source: 'map');
+      final countAfterFirst = enrichmentRequestCount[0];
+      expect(countAfterFirst, greaterThan(0));
+
+      final second = await resolver.resolveFromCoordinates(lat: 48.85, lon: 2.47, source: 'map');
+
+      expect(enrichmentRequestCount[0], countAfterFirst,
+          reason: 'no new POI/Wikipedia calls on the cache hit');
+      expect(second.poi?.name, first.poi?.name);
+      expect(second.promptContext, first.promptContext);
+    });
+
+    test('coordinates far enough apart are not treated as a cache hit',
+        () async {
+      final enrichmentRequestCount = [0];
+      final client =
+          countingClient({'amenity': 'restaurant', 'name': 'Chez Paul'}, enrichmentRequestCount);
+      final resolver = LocationContextResolver(
+        poiService: PoiService(client: client),
+        httpClient: client,
+      );
+
+      await resolver.resolveFromCoordinates(lat: 48.85, lon: 2.47, source: 'map');
+      final countAfterFirst = enrichmentRequestCount[0];
+
+      await resolver.resolveFromCoordinates(lat: 40.71, lon: -74.01, source: 'map');
+
+      expect(enrichmentRequestCount[0], greaterThan(countAfterFirst));
+    });
+  });
 }
