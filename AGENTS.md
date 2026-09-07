@@ -42,10 +42,16 @@ both artifacts on every run for no benefit.
 
 Backlog/task tracking moved from a `TODO.md` file to
 [GitHub issues](https://github.com/Nohzoh/AudioLens/issues) (2026-08-22).
-When the work closes an issue, reference it in the PR body/commit
-(`Closes #<n>`) — GitHub closes it automatically on merge — and add an
-entry to CHANGELOG.md under "Done" (with what was actually verified) in
-the **same PR** as the code, as a follow-up commit once the PR number is
+Every change merged to `main` must reference an issue (2026-09-08) — no
+exceptions for small or direct-ask changes; if the work started from a
+conversational request with no pre-existing tracking issue, file one
+first (before/during the work, not after merge) rather than landing
+without a reference. The only changes exempt from this are `ship`'s own
+`chore/publish-v*` PRs, which are never numbered release items
+themselves. Reference the issue in the PR body/commit (`Closes #<n>`) —
+GitHub closes it automatically on merge — and add an entry to
+CHANGELOG.md under "Done" (with what was actually verified) in the
+**same PR** as the code, as a follow-up commit once the PR number is
 known so the changelog entry can reference it. This halves PR/CI-run count
 versus a separate docs-only PR per task (2026-08-16).
 
