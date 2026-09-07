@@ -16,6 +16,11 @@ by referencing it (`Closes #<n>`) in the PR that resolves it.
 
 ## ✅ Done
 
+- [x] ✨ ⭐⭐⭐ - **Add a gamified quiz screen built from existing history data** (issue #343)
+  - **Verified**: 2026-09-07 (PR #354)
+  - **What was done**: a new quiz icon on HomeScreen picks a random completed history entry and asks the user to guess it, reusing existing data (no new photo/analysis). "Where was this?" is always available (photo + 4 title-based options); a richer text-comprehension question generated from the entry's cached script is used instead when a Gemini API key is configured, falling back silently to the first type on any generation failure. No score/state is persisted. Gated behind a 5-distinct-title minimum.
+  - **Final validation**: `flutter analyze` → 0 issues; `flutter test` → 450/450 (14 new tests). Dart-only change, no native Kotlin touched.
+
 - [x] 🌱 ⭐⭐⭐ - **Parallelize the enrichment pipeline and cache by coordinates** (issue #137)
   - **Verified**: 2026-09-07 (PR #353)
   - **What was done**: external audit finding — POI lookup (Overpass), Wikidata, and Wikipedia (geosearch + name search) ran one after another even though most don't depend on each other's output. POI lookup and the Wikipedia geosearch only need lat/lon and now run concurrently; Wikidata and the name-matched Wikipedia search depend on the POI's result but not on each other, so they also run concurrently once it resolves. Added a simple in-memory cache (session-lived, keyed on lat/lon rounded to ~11m, 24h TTL) so repeat visits to the same coordinates skip POI/Wikidata/Wikipedia entirely. Reverse geocoding itself is unchanged, still ahead of enrichment (T78).

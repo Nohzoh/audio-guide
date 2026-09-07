@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import '../models/guide_error.dart';
+import '../models/quiz_question.dart';
 import '../utils/app_logger.dart';
 import '../utils/cancel_token.dart';
 import '../utils/error_sanitizer.dart';
@@ -234,6 +235,89 @@ class GeminiApiService implements AIService {
     }
   }
 
+  /// #343: generates a text-comprehension quiz question from [script] — an
+  /// already-existing history entry's cached AI-written text, no new photo
+  /// analysis involved. Silent-failure by design: returns null on any
+  /// error (network, rate limit, malformed/incomplete JSON) rather than
+  /// throwing — the quiz screen falls back to its zero-cost "guess the
+  /// place" question type when this returns null, so a single missing
+  /// quiz question isn't worth retrying across models or surfacing an
+  /// error for, unlike a real analysis.
+  Future<QuizQuestion?> generateQuizQuestion({
+    required String script,
+    String? language,
+  }) async {
+    final cfg = RemoteConfigService.current;
+    final languagePart = language != null && language.isNotEmpty
+        ? 'Pose la question et les reponses exclusivement en $language. '
+        : '';
+    final prompt = 'Voici le texte d\'un guide audio touristique :\n\n$script\n\n'
+        'A partir de ce texte, redige en JSON valide uniquement, sans markdown : '
+        '{"question": "une question factuelle courte sur une information precise '
+        'mentionnee dans ce texte", "correctAnswer": "la bonne reponse, courte '
+        '(quelques mots)", "wrongAnswers": ["reponse plausible mais fausse 1", '
+        '"reponse plausible mais fausse 2", "reponse plausible mais fausse 3"]} '
+        '$languagePart'
+        'La question doit porter sur un fait precis et verifiable du texte (date, '
+        'nom, materiau, anecdote...), jamais une question generale ou d\'opinion. '
+        'Les mauvaises reponses doivent etre plausibles et du meme type que la '
+        'bonne (une date proche pour une question de date, etc.), jamais absurdes. '
+        'Ecris uniquement le JSON final, rien d\'autre.';
+
+    try {
+      final resp = await _post(
+        Uri.parse('${cfg.geminiApiUrl}/models/${cfg.geminiModel}:generateContent?key=$apiKey'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'contents': [
+            {
+              'parts': [
+                {'text': prompt}
+              ]
+            }
+          ],
+          'generationConfig': {
+            'maxOutputTokens': cfg.geminiMaxTokens,
+            'temperature': cfg.geminiTemperature,
+          },
+        }),
+      );
+      if (resp.statusCode != 200) return null;
+
+      final text = _extractCandidateText(resp.body);
+      if (text == null || text.isEmpty) return null;
+
+      final jsonBlob = _extractJsonObject(text);
+      if (jsonBlob == null) return null;
+      final parsed = jsonDecode(jsonBlob);
+      if (parsed is! Map<String, dynamic>) return null;
+
+      final question = (parsed['question'] as String? ?? '').trim();
+      final correctAnswer = (parsed['correctAnswer'] as String? ?? '').trim();
+      final wrongAnswersRaw = parsed['wrongAnswers'];
+      final wrongAnswers = wrongAnswersRaw is List
+          ? wrongAnswersRaw
+              .whereType<String>()
+              .map((s) => s.trim())
+              .where((s) => s.isNotEmpty)
+              .toSet() // guards against the model repeating an answer
+              .toList()
+          : <String>[];
+
+      if (question.isEmpty || correctAnswer.isEmpty || wrongAnswers.length < 3) {
+        return null;
+      }
+
+      return QuizQuestion(
+        question: question,
+        correctAnswer: correctAnswer,
+        wrongAnswers: wrongAnswers.take(3).toList(),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Parses a 200 response body into a result, or throws [FormatException]
   /// if the body can't yield a usable title+script.
   ///
@@ -249,24 +333,7 @@ class GeminiApiService implements AIService {
     // from a proxy/CDN error page or a future API schema tweak) and land
     // in analyzeImage's generic catch, mislabelled as a network failure
     // instead of an unusable response.
-    final decoded = jsonDecode(body);
-    if (decoded is! Map<String, dynamic>) {
-      throw const FormatException('unexpected response shape');
-    }
-    final data = decoded;
-    // Indexed access rather than [0] directly: a response can legitimately
-    // carry an empty candidates/parts list (e.g. everything was filtered
-    // out), and a RangeError here would escape the FormatException
-    // contract this method promises, landing in analyzeImage's generic
-    // catch and getting mislabelled as a network failure.
-    final candidates = data['candidates'];
-    final firstCandidate =
-        (candidates is List && candidates.isNotEmpty) ? candidates.first : null;
-    final content = firstCandidate is Map<String, dynamic> ? firstCandidate['content'] : null;
-    final parts = content is Map<String, dynamic> ? content['parts'] : null;
-    final firstPart = (parts is List && parts.isNotEmpty) ? parts.first : null;
-    final rawText = firstPart is Map<String, dynamic> ? firstPart['text'] : null;
-    final text = rawText is String ? rawText : null;
+    final text = _extractCandidateText(body);
 
     if (text == null || text.isEmpty) {
       // Most often: thinking tokens consumed the entire maxOutputTokens
@@ -387,6 +454,29 @@ class GeminiApiService implements AIService {
             'accroche originale, details fascinants, contexte historique, '
             'anecdote marquante, conclusion emotionnelle.';
     }
+  }
+
+  /// Pulls the first candidate's text out of a raw `generateContent`
+  /// response body, or null on any shape mismatch — a response can
+  /// legitimately carry an empty/missing candidates/parts list (e.g.
+  /// everything was filtered out), and indexed access rather than `[0]`
+  /// directly avoids a RangeError on that case.
+  static String? _extractCandidateText(String body) {
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(body);
+    } on FormatException {
+      return null;
+    }
+    if (decoded is! Map<String, dynamic>) return null;
+    final candidates = decoded['candidates'];
+    final firstCandidate =
+        (candidates is List && candidates.isNotEmpty) ? candidates.first : null;
+    final content = firstCandidate is Map<String, dynamic> ? firstCandidate['content'] : null;
+    final parts = content is Map<String, dynamic> ? content['parts'] : null;
+    final firstPart = (parts is List && parts.isNotEmpty) ? parts.first : null;
+    final rawText = firstPart is Map<String, dynamic> ? firstPart['text'] : null;
+    return rawText is String ? rawText : null;
   }
 
   /// Finds the first top-level JSON object in [text] by scanning for

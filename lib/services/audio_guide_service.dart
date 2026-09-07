@@ -77,6 +77,10 @@ class AudioGuideService extends ChangeNotifier {
   late final AiProviderManager _providerManager;
   GuideProgressEstimator _progressEstimator = GuideProgressEstimator();
   GeminiTtsService? get geminiTtsService => _providerManager.geminiTtsService;
+  // #343: independent of which provider is currently *active* for photo
+  // analysis — a Nano-active user with a cloud key configured as fallback
+  // can still use the quiz's richer, Gemini-generated question type.
+  GeminiApiService? get geminiApiServiceForQuiz => _providerManager.geminiApiService;
   // #283: lets Settings query NanoDeviceStatus (hardware/OS support, not
   // just the collapsed nanoAvailable bool) without AudioGuideService
   // having to proxy every GeminiNanoService method individually.

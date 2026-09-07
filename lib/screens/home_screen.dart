@@ -25,6 +25,7 @@ import '../utils/guide_error_localizer.dart';
 import '../widgets/kofi_button.dart';
 import 'history_screen.dart';
 import 'map_picker_screen.dart';
+import 'quiz_screen.dart';
 import 'settings_screen.dart';
 
 /// #309 — one entry in the round-robin startup tips list. [isKofi] marks
@@ -313,6 +314,31 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             : null,
       ),
     );
+  }
+
+  /// #343: gates on the same eligibility [QuizScreen] itself computes
+  /// (`hasEnoughQuizEntries`) — checked here too so tapping the icon with
+  /// too little history explains why instead of opening an empty/broken
+  /// quiz.
+  void _openQuiz(BuildContext context, HistoryService history) {
+    final l10n = AppLocalizations.of(context)!;
+    if (!hasEnoughQuizEntries(history)) {
+      showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(l10n.quizNotEnoughEntriesTitle),
+          content: Text(l10n.quizNotEnoughEntriesBody(quizMinimumEntries)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(l10n.commonOk),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const QuizScreen()));
   }
 
   @override
@@ -726,6 +752,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         builder: (context, settings, _) => KofiButton(
                           show: settings.showKofiButton,
                           iconColor: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      // #343
+                      Consumer<HistoryService>(
+                        builder: (context, history, _) => IconButton(
+                          icon: const Icon(Icons.quiz_outlined),
+                          tooltip: AppLocalizations.of(context)!.quizIconTooltip,
+                          onPressed: () => _openQuiz(context, history),
                         ),
                       ),
                       IconButton(
