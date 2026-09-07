@@ -20,6 +20,9 @@ class SettingsService extends ChangeNotifier {
   String? _lastSeenVersion;
   String? _whatsNewShownVersion;
   String? _whatsNewDismissedVersion;
+  bool _tipsEnabled = true;
+  int _launchCount = 0;
+  int _tipIndex = 0;
 
   bool get isOnboardingComplete => _isOnboardingComplete;
   String get geminiApiKey => _geminiApiKey;
@@ -101,6 +104,41 @@ class SettingsService extends ChangeNotifier {
     await _prefs.setString('whats_new_dismissed_version', version);
   }
 
+  /// #309 — whether HomeScreen may occasionally show a discreet startup
+  /// tip (roughly every 10th launch). On by default; a user who'd rather
+  /// not see them can turn this off in Settings.
+  bool get tipsEnabled => _tipsEnabled;
+
+  Future<void> setTipsEnabled(bool value) async {
+    _tipsEnabled = value;
+    await _prefs.setBool('tips_enabled', value);
+    notifyListeners();
+  }
+
+  /// #309 — total number of times HomeScreen has started up, used to
+  /// gate the startup tip to roughly 1 in 10 launches rather than every
+  /// one. Incremented unconditionally on every HomeScreen launch,
+  /// regardless of [tipsEnabled] or whether a tip actually ends up
+  /// showing (e.g. a whats-new dialog took priority that launch) — the
+  /// cadence is meant to track real usage frequency, not "launches where
+  /// a tip was possible".
+  int get launchCount => _launchCount;
+
+  Future<void> incrementLaunchCount() async {
+    _launchCount++;
+    await _prefs.setInt('launch_count', _launchCount);
+  }
+
+  /// #309 — round-robin position in the startup tips list: each tip is
+  /// shown in order, without repeats until the whole list has cycled,
+  /// rather than picked at random.
+  int get tipIndex => _tipIndex;
+
+  Future<void> setTipIndex(int value) async {
+    _tipIndex = value;
+    await _prefs.setInt('tip_index', value);
+  }
+
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
     _isOnboardingComplete = _prefs.getBool('onboarding_complete') ?? false;
@@ -117,6 +155,9 @@ class SettingsService extends ChangeNotifier {
     _lastSeenVersion = _prefs.getString('last_seen_version');
     _whatsNewShownVersion = _prefs.getString('whats_new_shown_version');
     _whatsNewDismissedVersion = _prefs.getString('whats_new_dismissed_version');
+    _tipsEnabled = _prefs.getBool('tips_enabled') ?? true;
+    _launchCount = _prefs.getInt('launch_count') ?? 0;
+    _tipIndex = _prefs.getInt('tip_index') ?? 0;
     // Re-resolve in case the app's language changed (system locale, or a
     // prior in-app override) since the last launch while this was on.
     if (_outputLanguageFollowsApp) {
@@ -167,6 +208,9 @@ class SettingsService extends ChangeNotifier {
     _lastSeenVersion = null;
     _whatsNewShownVersion = null;
     _whatsNewDismissedVersion = null;
+    _tipsEnabled = true;
+    _launchCount = 0;
+    _tipIndex = 0;
     notifyListeners();
   }
 

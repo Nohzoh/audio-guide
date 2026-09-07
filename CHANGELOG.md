@@ -16,6 +16,11 @@ by referencing it (`Closes #<n>`) in the PR that resolves it.
 
 ## ✅ Done
 
+- [x] ✨ ⭐⭐ - **Show a discreet startup tip roughly every 10th launch** (issue #309)
+  - **Verified**: 2026-09-07 (PR #350)
+  - **What was done**: direct request — a round-robin list of short tips (local AI vs API mode, narration style, feedback with attached analysis, skip controls, output language, auto-purge, photo mode, history, and an occasional Ko-fi support message) surfaces via `SnackBar` on `HomeScreen`, gated to every 10th launch. Also motivated as a safety net for #312's reliability issues: a feature announced in a whats-new dialog that got missed would still eventually resurface through the tip rotation. Never shown the same launch as the whats-new dialog; the Ko-fi slot is skipped if the user has hidden the Ko-fi button elsewhere; fully opt-out via a new toggle in Settings.
+  - **Final validation**: `flutter analyze` → 0 issues; `flutter test` → 426/426 (10 new tests). Dart-only change, no native Kotlin touched.
+
 - [x] 🐛 ⭐⭐ - **Only mark whats-new seen once the user actually dismisses it** (issue #312)
   - **Verified**: 2026-09-07 (PR #349)
   - **What was done**: root cause finally confirmed by the #342 breadcrumb diagnostic in a real production log (v0.12.1): the dialog was shown but never recorded as dismissed, yet the very next launch already said "already seen, skipping". `_checkWhatsNew()` was calling `recordSeenVersion(currentVersion)` right after the release-notes text loaded, before ever attempting to show the dialog — if the dialog was then lost before the user could tap OK (a startup-timing race, e.g. with Android's flexible in-app-update restart), the version was permanently marked seen and the user could never see it again. `recordSeenVersion` now only runs once the user taps OK (alongside `recordWhatsNewDismissed`), or in the empty/corrupt-asset branch where nothing was ever attempted — a lost dialog now retries on the next launch instead of giving up forever.

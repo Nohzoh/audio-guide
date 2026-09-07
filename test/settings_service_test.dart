@@ -152,6 +152,71 @@ void main() {
     expect(settings.whatsNewDismissedVersion, isNull);
   });
 
+  // #309
+  group('startup tips', () {
+    test('tipsEnabled defaults to true, launchCount/tipIndex default to 0',
+        () async {
+      final settings = SettingsService();
+      await settings.init();
+
+      expect(settings.tipsEnabled, isTrue);
+      expect(settings.launchCount, 0);
+      expect(settings.tipIndex, 0);
+    });
+
+    test('setTipsEnabled persists across a reload', () async {
+      final settings = SettingsService();
+      await settings.init();
+
+      await settings.setTipsEnabled(false);
+      expect(settings.tipsEnabled, isFalse);
+
+      final reloaded = SettingsService();
+      await reloaded.init();
+      expect(reloaded.tipsEnabled, isFalse);
+    });
+
+    test('incrementLaunchCount persists across a reload', () async {
+      final settings = SettingsService();
+      await settings.init();
+
+      await settings.incrementLaunchCount();
+      await settings.incrementLaunchCount();
+      expect(settings.launchCount, 2);
+
+      final reloaded = SettingsService();
+      await reloaded.init();
+      expect(reloaded.launchCount, 2);
+    });
+
+    test('setTipIndex persists across a reload', () async {
+      final settings = SettingsService();
+      await settings.init();
+
+      await settings.setTipIndex(3);
+      expect(settings.tipIndex, 3);
+
+      final reloaded = SettingsService();
+      await reloaded.init();
+      expect(reloaded.tipIndex, 3);
+    });
+
+    test('resetOnboarding clears tipsEnabled/launchCount/tipIndex too',
+        () async {
+      final settings = SettingsService();
+      await settings.init();
+      await settings.setTipsEnabled(false);
+      await settings.incrementLaunchCount();
+      await settings.setTipIndex(5);
+
+      await settings.resetOnboarding();
+
+      expect(settings.tipsEnabled, isTrue);
+      expect(settings.launchCount, 0);
+      expect(settings.tipIndex, 0);
+    });
+  });
+
   test('setShowKofiButton persists across a reload', () async {
     final settings = SettingsService();
     await settings.init();

@@ -187,6 +187,8 @@
   "feedbackDialogAnalysisImageMissing": "The attached analysis's photo can't be found. Remove it to send your feedback.",
   "settingsShowKofiButton": "Show the support button",
   "settingsKofiButtonSubtitle": "Ko-fi button in the interface",
+  "settingsShowTips": "Show tips on startup",
+  "settingsShowTipsSubtitle": "An occasional message to discover features",
   "settingsAutoGenerateAudio": "Generate audio automatically",
   "settingsAutoGenerateAudioSubtitle": "Turn off to keep only the script, and generate the audio later from history",
   "settingsAutoPurge": "Auto-purge history",
@@ -320,5 +322,15 @@
   "reportContentSend": "Send",
   "reportContentEmailSubject": "AudioLens content report",
   "reportContentEmailBody": "Reported content: {title}\nAI model: {aiModel}\nDate: {date}\n\nScript:\n{script}\n\nReason given by the user:\n{reason}",
-  "reportContentNoEmailApp": "No email app found. Contact us at {email}"
+  "reportContentNoEmailApp": "No email app found. Contact us at {email}",
+  "startupTipLocalAi": "Tip: switch to local AI in Settings to analyze photos offline, with maximum privacy.",
+  "startupTipScriptStyle": "Tip: pick the narration style (immersive, academic, anecdotal, concise) in Settings.",
+  "startupTipFeedbackAnalysis": "Tip: you can attach an existing analysis to your feedback to report a specific problem.",
+  "startupTipSkip": "Tip: during playback, skip forward or back 10 seconds with the skip buttons.",
+  "startupTipOutputLanguage": "Tip: the audio narration language is set independently from the app's language, in Settings.",
+  "startupTipKofi": "If AudioLens is useful to you, a small tip on Ko-fi helps keep the project going.",
+  "startupTipKofiAction": "Support",
+  "startupTipAutoPurge": "Tip: enable automatic history cleanup in Settings to free up space.",
+  "startupTipPhotoMode": "Tip: during playback, switch to the full-screen photo with the icon in the top right.",
+  "startupTipHistory": "Tip: find all your past analyses in History, accessible from the clock icon."
 }
