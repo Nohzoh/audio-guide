@@ -381,5 +381,36 @@
   "startupTipKofiAction": "Soutenir",
   "startupTipAutoPurge": "Astuce : activez la purge automatique de l'historique dans Réglages pour libérer de l'espace.",
   "startupTipPhotoMode": "Astuce : pendant la lecture, basculez vers la photo plein écran avec l'icône en haut à droite.",
-  "startupTipHistory": "Astuce : retrouvez toutes vos analyses passées dans l'historique, accessible depuis l'icône horloge."
+  "startupTipHistory": "Astuce : retrouvez toutes vos analyses passées dans l'historique, accessible depuis l'icône horloge.",
+  "guideErrorBusyAnalysis": "Une analyse est déjà en cours.",
+  "guideErrorBusyOperation": "Une opération est déjà en cours.",
+  "guideErrorAiNoProviderConfigured": "Aucun service IA disponible. Configurez une clé API dans les paramètres.",
+  "guideErrorAiBackgroundRestricted": "L'analyse hors-ligne (Gemini Nano) nécessite que l'application reste au premier plan. Réessayez en gardant AudioLens ouvert, ou configurez une clé Gemini API dans les réglages pour permettre l'analyse en arrière-plan.",
+  "guideErrorAiFallbackBackgroundRestricted": "L'analyse a échoué et le repli hors-ligne (Gemini Nano) nécessite que l'application reste au premier plan. Réessayez en gardant AudioLens ouvert.",
+  "guideErrorAiQuotaExceeded": "Quota Google AI dépassé. Réessayez plus tard, ou vérifiez les limites de votre clé API dans Google AI Studio.",
+  "guideErrorAiModelUnavailable": "Le modèle configuré n'est plus disponible. Vérifiez la configuration du modèle dans les paramètres.",
+  "guideErrorAiServiceUnavailable": "Le service Google AI est temporairement indisponible. Réessayez dans quelques instants.",
+  "guideErrorAiUnusableResponse": "L'IA n'a pas renvoyé de réponse exploitable. Réessayez.",
+  "guideErrorAiNoModelConfigured": "Aucun modèle IA configuré.",
+  "guideErrorNetwork": "Connexion au service Google AI impossible. Vérifiez votre connexion internet.",
+  "guideErrorAiGeneric": "Analyse IA impossible. {detail}",
+  "@guideErrorAiGeneric": {
+    "placeholders": {
+      "detail": {"type": "String"}
+    }
+  },
+  "guideErrorTts": "La lecture audio a échoué. {detail}",
+  "@guideErrorTts": {
+    "placeholders": {
+      "detail": {"type": "String"}
+    }
+  },
+  "guideErrorStorageDiskFull": "Espace de stockage insuffisant pour enregistrer ce fichier. Libérez de l'espace et réessayez.",
+  "guideErrorStorageWriteFailed": "Impossible d'enregistrer le fichier ({detail}).",
+  "@guideErrorStorageWriteFailed": {
+    "placeholders": {
+      "detail": {"type": "String"}
+    }
+  },
+  "guideErrorStorageRotationFailed": "Impossible d'enregistrer la rotation de la photo."
 }

@@ -21,6 +21,7 @@ import '../services/settings_service.dart';
 import '../services/share_intent_service.dart';
 import '../utils/app_logger.dart';
 import '../utils/error_sanitizer.dart';
+import '../utils/guide_error_localizer.dart';
 import '../widgets/kofi_button.dart';
 import 'history_screen.dart';
 import 'map_picker_screen.dart';
@@ -447,8 +448,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       pendingEntry = await history.addPendingEntry(imagePath: imageFile.path);
     } on HistoryStorageException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+                localizeHistoryStorageException(AppLocalizations.of(context)!, e))));
       }
       return;
     }
@@ -500,8 +502,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       );
     } on HistoryStorageException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+                localizeHistoryStorageException(AppLocalizations.of(context)!, e))));
       }
       return;
     }

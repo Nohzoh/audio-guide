@@ -17,6 +17,7 @@ import '../widgets/mini_map.dart';
 import '../widgets/photo_gradient_background.dart';
 import '../widgets/scrim_icon_button.dart';
 import '../widgets/skip_icon_button.dart';
+import '../utils/guide_error_localizer.dart';
 import '../utils/user_message_utils.dart';
 import 'about_analysis_screen.dart';
 
@@ -1089,10 +1090,12 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
       // Synthesis failed — onComplete above never fires, reset locally.
       setState(() => _isPlaying = false);
       if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(guide.errorMessage ??
-                AppLocalizations.of(context)!.historyAudioGenerationFailed),
+            content: Text(guide.lastGuideError != null
+                ? localizeGuideError(l10n, guide.lastGuideError!)
+                : l10n.historyAudioGenerationFailed),
             duration: const Duration(seconds: 4),
             backgroundColor: Colors.orange.shade800,
           ),
@@ -1114,8 +1117,9 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
         // Playback via guide already worked — only caching the audio
         // file for next time failed (T116).
         if (mounted) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text(e.message)));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(
+                  localizeHistoryStorageException(AppLocalizations.of(context)!, e))));
         }
       }
     }
@@ -1286,7 +1290,9 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                                 } on HistoryStorageException catch (e) {
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text(e.message)));
+                                        SnackBar(
+                                            content: Text(localizeHistoryStorageException(
+                                                AppLocalizations.of(context)!, e))));
                                   }
                                 }
                               },

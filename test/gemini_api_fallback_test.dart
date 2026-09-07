@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:audiolens/models/guide_error.dart';
 import 'package:audiolens/services/gemini_api_service.dart';
 import 'package:audiolens/services/remote_config_service.dart';
 import 'support/fake_dio_adapter.dart';
@@ -182,15 +183,12 @@ void main() {
       }),
     );
 
-    // Every attempt was a 429, so the user gets the quota message rather
+    // Every attempt was a 429, so the user gets the quota kind rather
     // than a raw per-model trace.
     await expectLater(
       service.analyzeImage(tempImage()),
-      throwsA(isA<Exception>().having(
-        (e) => e.toString(),
-        'message',
-        contains('Quota Google AI dépassé'),
-      )),
+      throwsA(isA<GuideError>()
+          .having((e) => e.kind, 'kind', GuideErrorKind.aiQuotaExceeded)),
     );
 
     expect(requested, hasLength(fallbacks.length + 1));
@@ -336,11 +334,8 @@ void main() {
 
     await expectLater(
       service.analyzeImage(tempImage()),
-      throwsA(isA<Exception>().having(
-        (e) => e.toString(),
-        'message',
-        contains('pas renvoyé de réponse exploitable'),
-      )),
+      throwsA(isA<GuideError>()
+          .having((e) => e.kind, 'kind', GuideErrorKind.aiUnusableResponse)),
     );
 
     expect(requested, hasLength(fallbacks.length + 1));
@@ -371,8 +366,11 @@ void main() {
   });
 
 
-  group('user-facing failure messages', () {
-    Future<String> messageWhenAllModelsReturn(
+  group('user-facing failure kind', () {
+    // #230: services throw a GuideErrorKind, not prose — localizing (and
+    // keeping the per-model trace out of what the user sees) is the UI
+    // layer's job now, tested separately via guide_error_localizer.
+    Future<GuideErrorKind> kindWhenAllModelsReturn(
       Future<({int statusCode, String body})> Function(String model) respond,
     ) async {
       final service = GeminiApiService(
@@ -382,36 +380,36 @@ void main() {
       try {
         await service.analyzeImage(tempImage());
         fail('expected analyzeImage to throw');
-      } on Exception catch (e) {
+      } on GuideError catch (e) {
         // Deliberately not a bare `catch`: fail() above throws a
         // TestFailure, which a bare catch would swallow and return as if
-        // it were the message under test, turning a broken test green.
-        return e.toString();
+        // it were the kind under test, turning a broken test green.
+        return e.kind;
       }
     }
 
-    test('503 everywhere -> temporary outage message', () async {
-      final msg = await messageWhenAllModelsReturn(
+    test('503 everywhere -> service-unavailable kind', () async {
+      final kind = await kindWhenAllModelsReturn(
           (_) async => (statusCode: 503, body: _errorJson()));
-      expect(msg, contains('temporairement indisponible'));
+      expect(kind, GuideErrorKind.aiServiceUnavailable);
     });
 
-    test('404 everywhere -> model configuration message', () async {
-      final msg = await messageWhenAllModelsReturn(
+    test('404 everywhere -> model-unavailable kind', () async {
+      final kind = await kindWhenAllModelsReturn(
           (_) async => (statusCode: 404, body: _errorJson()));
-      expect(msg, contains('n\'est plus disponible'));
+      expect(kind, GuideErrorKind.aiModelUnavailable);
     });
 
-    test('network failure everywhere -> connectivity message', () async {
-      final msg = await messageWhenAllModelsReturn(
+    test('network failure everywhere -> network kind', () async {
+      final kind = await kindWhenAllModelsReturn(
           (_) async => throw const SocketException('network down'));
-      expect(msg, contains('Vérifiez votre connexion internet'));
+      expect(kind, GuideErrorKind.network);
     });
 
     // The reason genuinely differs per model in the real world: the
     // primary can be out of quota while a fallback has simply been
     // retired. Only the last attempt's cause is reported, rather than
-    // stitching several unrelated causes into one message.
+    // stitching several unrelated causes into one kind.
     test('mixed causes -> reports the last attempt, not the first', () async {
       final service = GeminiApiService(
         apiKey: 'test-key',
@@ -426,24 +424,18 @@ void main() {
 
       await expectLater(
         service.analyzeImage(tempImage()),
-        throwsA(isA<Exception>().having(
-          (e) => e.toString(),
-          'message',
-          allOf(
-            contains('n\'est plus disponible'),
-            isNot(contains('Quota')),
-          ),
-        )),
+        throwsA(isA<GuideError>()
+            .having((e) => e.kind, 'kind', GuideErrorKind.aiModelUnavailable)),
       );
     });
 
-    test('the raw per-model trace stays out of the user-facing message', () async {
-      final msg = await messageWhenAllModelsReturn(
+    test('the failure kind carries no per-model trace', () async {
+      final kind = await kindWhenAllModelsReturn(
           (_) async => (statusCode: 429, body: _errorJson()));
-      // The trace lives in lastAttempts for the debug screen — showing
-      // model IDs and HTTP codes to the user helps nobody.
-      expect(msg, isNot(contains('✗')));
-      expect(msg, isNot(contains(primary)));
+      // The trace lives in lastAttempts for the debug screen — a plain
+      // enum value is structurally incapable of leaking model IDs or
+      // HTTP codes to the user.
+      expect(kind, GuideErrorKind.aiQuotaExceeded);
     });
   });
 

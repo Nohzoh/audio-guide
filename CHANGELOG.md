@@ -16,6 +16,11 @@ by referencing it (`Closes #<n>`) in the PR that resolves it.
 
 ## ✅ Done
 
+- [x] 🔧 ⭐⭐⭐ - **Localize service-layer error messages and system notifications** (issue #230)
+  - **Verified**: 2026-09-07 (PR #351)
+  - **What was done**: split off #129 — every error message the user actually saw was hardcoded French prose, built deep inside plain Dart service classes with no `BuildContext`/`AppLocalizations` to localize with. `GuideErrorKind` existed for exactly this but was never actually read anywhere. Expanded it to 17 specific values covering every failure actually thrown today (busy, no-provider, background-restricted x2, quota/model/service/unusable-response/no-model, network, generic, tts, storage x3, unknown), each carrying an optional sanitized detail. `AudioGuideService.errorMessage` (String?) is now `lastGuideError` (GuideError?); `HistoryStorageException` carries the same shape. A new `guide_error_localizer.dart` maps a kind to a localized message at the UI layer — the only place with a `BuildContext`. `AudioReadyNotifier`'s Android notifications (fire from a background/foreground-service context with no `BuildContext` at all) resolve from the device locale directly instead.
+  - **Final validation**: `flutter analyze` → 0 issues; `flutter test` → 434/434 (rewrote 6 existing test files from string-matching to kind-checking; 2 new test files). Dart-only change, no native Kotlin touched.
+
 - [x] ✨ ⭐⭐ - **Show a discreet startup tip roughly every 10th launch** (issue #309)
   - **Verified**: 2026-09-07 (PR #350)
   - **What was done**: direct request — a round-robin list of short tips (local AI vs API mode, narration style, feedback with attached analysis, skip controls, output language, auto-purge, photo mode, history, and an occasional Ko-fi support message) surfaces via `SnackBar` on `HomeScreen`, gated to every 10th launch. Also motivated as a safety net for #312's reliability issues: a feature announced in a whats-new dialog that got missed would still eventually resurface through the tip rotation. Never shown the same launch as the whats-new dialog; the Ko-fi slot is skipped if the user has hidden the Ko-fi button elsewhere; fully opt-out via a new toggle in Settings.

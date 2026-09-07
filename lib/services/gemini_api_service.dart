@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import '../models/guide_error.dart';
 import '../utils/app_logger.dart';
 import '../utils/cancel_token.dart';
 import '../utils/error_sanitizer.dart';
@@ -204,38 +205,32 @@ class GeminiApiService implements AIService {
       // than dumping the per-model trace — that trace stays available in
       // lastAttempts for the debug screen.
       AppLogger.ai('All models failed:\n${attempts.join('\n')}');
-      throw Exception(_userFacingFailureMessage(lastFailure));
+      throw GuideError(_failureKind(lastFailure));
     }
 
     // Non-null whenever response is: both are set together in the loop above.
     return parsedResult!;
   }
 
-  /// Message shown to the user when no model produced a usable answer,
-  /// based on the *last* attempt's failure.
-  static String _userFacingFailureMessage(_GeminiFailure? failure) {
+  /// #230: maps the *last* attempt's failure to a [GuideErrorKind] —
+  /// localized to a user-facing message at display time, not here (this
+  /// class has no `BuildContext`/`AppLocalizations` to localize with).
+  static GuideErrorKind _failureKind(_GeminiFailure? failure) {
     switch (failure) {
       case _GeminiFailure.quotaExceeded:
-        // The most common real-world case: anyone using their own Google
-        // API key knows quotas exist, so name it plainly instead of
-        // hiding it behind a generic failure.
-        return 'Quota Google AI dépassé. Réessayez plus tard, ou vérifiez '
-            'les limites de votre clé API dans Google AI Studio.';
+        return GuideErrorKind.aiQuotaExceeded;
       case _GeminiFailure.modelUnavailable:
-        return 'Le modèle configuré n\'est plus disponible. Vérifiez la '
-            'configuration du modèle dans les paramètres.';
+        return GuideErrorKind.aiModelUnavailable;
       case _GeminiFailure.serviceUnavailable:
-        return 'Le service Google AI est temporairement indisponible. '
-            'Réessayez dans quelques instants.';
+        return GuideErrorKind.aiServiceUnavailable;
       case _GeminiFailure.unusableResponse:
-        return 'L\'IA n\'a pas renvoyé de réponse exploitable. Réessayez.';
+        return GuideErrorKind.aiUnusableResponse;
       case _GeminiFailure.network:
-        return 'Connexion au service Google AI impossible. Vérifiez votre '
-            'connexion internet.';
+        return GuideErrorKind.network;
       case null:
         // No model was even attempted — an empty model list, which is a
         // configuration problem rather than a runtime failure.
-        return 'Aucun modèle IA configuré.';
+        return GuideErrorKind.aiNoModelConfigured;
     }
   }
 

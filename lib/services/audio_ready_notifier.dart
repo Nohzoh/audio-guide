@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
@@ -6,9 +7,15 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 /// isn't silently dropped when the user isn't actively watching the app.
 /// Best-effort by design, same rationale as [AnalysisForegroundService]:
 /// a notification hiccup must never break the actual analysis.
+///
+/// #230: this can fire from a background/foreground-service context with
+/// no active screen at all, so its strings can't go through
+/// `AppLocalizations` (needs a `BuildContext`) like the rest of the app's
+/// error messages do — resolved directly from the device locale instead,
+/// mirroring `SettingsService._resolveAppLanguageDisplayName`'s same
+/// fr-or-else-English fallback.
 class AudioReadyNotifier {
   static const _channelId = 'analysis_result';
-  static const _channelName = 'Résultat de l\'analyse';
   // #323: was 4202, identical to PlaybackForegroundService.kt's
   // NOTIFICATION_ID (native foreground-service notification with the
   // lock-screen playback controls) — posting this one silently replaced
@@ -19,6 +26,9 @@ class AudioReadyNotifier {
 
   final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
   bool _initialized = false;
+
+  bool get _isFrench => ui.PlatformDispatcher.instance.locale.languageCode == 'fr';
+  String get _channelName => _isFrench ? 'Résultat de l\'analyse' : 'Analysis result';
 
   /// Called with the entry ID carried in a "ready" notification's payload
   /// when the user taps it — only set when that entry's playback was
@@ -90,13 +100,15 @@ class AudioReadyNotifier {
   Future<void> notifyReady({String? payload}) => _show(
         title: 'AudioLens',
         body: payload != null
-            ? 'Votre audioguide est prêt. Touchez pour l\'écouter.'
-            : 'Votre audioguide est prêt.',
+            ? (_isFrench
+                ? 'Votre audioguide est prêt. Touchez pour l\'écouter.'
+                : 'Your audio guide is ready. Tap to listen.')
+            : (_isFrench ? 'Votre audioguide est prêt.' : 'Your audio guide is ready.'),
         payload: payload,
       );
 
-  Future<void> notifyFailed() =>
-      _show(title: 'AudioLens', body: 'L\'analyse a échoué.');
+  Future<void> notifyFailed() => _show(
+      title: 'AudioLens', body: _isFrench ? 'L\'analyse a échoué.' : 'The analysis failed.');
 
   /// Only shows while the user isn't actively looking at the app —
   /// avoids a redundant popup on top of a screen already displaying the
@@ -111,7 +123,7 @@ class AudioReadyNotifier {
         id: _notificationId,
         title: title,
         body: body,
-        notificationDetails: const NotificationDetails(
+        notificationDetails: NotificationDetails(
           android: AndroidNotificationDetails(
             _channelId,
             _channelName,

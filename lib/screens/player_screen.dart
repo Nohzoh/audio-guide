@@ -8,6 +8,7 @@ import '../services/audio_guide_service.dart';
 import '../services/location_service.dart';
 import '../services/settings_service.dart';
 import '../utils/app_logger.dart';
+import '../utils/guide_error_localizer.dart';
 import '../widgets/guide_action_row.dart';
 import '../widgets/kofi_button.dart';
 import '../widgets/mini_map.dart';
@@ -150,6 +151,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
               _readingProgress = 0.0;
               _photoMode = false;
             }
+            // #230: localized once here — guide.lastGuideError only carries
+            // a code, not prose; this is the one place in the whole error
+            // chain with a BuildContext to localize it with.
+            final errorText = guide.lastGuideError != null
+                ? localizeGuideError(l10n, guide.lastGuideError!)
+                : l10n.playerUnknownError;
 
             return Stack(
               fit: StackFit.expand,
@@ -520,9 +527,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                             label: l10n.playerCopy,
                                             color: Colors.white54,
                                             onTap: () {
-                                              Clipboard.setData(ClipboardData(
-                                                  text: guide.errorMessage ??
-                                                      ''));
+                                              Clipboard.setData(
+                                                  ClipboardData(text: errorText));
                                               ScaffoldMessenger.of(context)
                                                   .showSnackBar(SnackBar(
                                                       content: Text(l10n
@@ -535,8 +541,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                       ),
                                       const SizedBox(height: 8),
                                       Text(
-                                        guide.errorMessage ??
-                                            l10n.playerUnknownError,
+                                        errorText,
                                         style: const TextStyle(
                                             color: Colors.white,
                                             fontSize: 12,

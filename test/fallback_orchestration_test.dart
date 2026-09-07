@@ -8,6 +8,7 @@ import 'package:audiolens/services/gemini_api_service.dart';
 import 'package:audiolens/services/gemini_nano_service.dart';
 import 'package:audiolens/services/gemini_tts_service.dart';
 import 'package:audiolens/services/native_tts_service.dart';
+import 'package:audiolens/models/guide_error.dart';
 import 'package:audiolens/utils/cancel_token.dart';
 import 'support/fake_dio_adapter.dart';
 import 'support/service_fakes.dart' show setUpSecureStorageMock, tearDownSecureStorageMock;
@@ -254,8 +255,7 @@ void main() {
 
     expect(result, isNull);
     expect(service.state, GuideState.error);
-    expect(service.errorMessage, contains('premier plan'));
-    expect(service.errorMessage, isNot(contains('ErrorCode')));
+    expect(service.lastGuideError?.kind, GuideErrorKind.aiBackgroundRestricted);
   });
 
   test(
@@ -275,8 +275,7 @@ void main() {
     expect(result, isNull);
     expect(nano.analyzeCalled, isTrue);
     expect(service.state, GuideState.error);
-    expect(service.errorMessage, contains('premier plan'));
-    expect(service.errorMessage, isNot(contains('ErrorCode')));
+    expect(service.lastGuideError?.kind, GuideErrorKind.aiFallbackBackgroundRestricted);
   });
 
   test('No AI service available -> clear error, no crash', () async {
@@ -289,7 +288,7 @@ void main() {
 
     expect(result, isNull);
     expect(service.state, GuideState.error);
-    expect(service.errorMessage, contains('Aucun service IA'));
+    expect(service.lastGuideError?.kind, GuideErrorKind.aiNoProviderConfigured);
   });
 
   // #253 — reported live: picking Nano specifically to keep everything
