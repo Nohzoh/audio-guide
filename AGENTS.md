@@ -55,6 +55,10 @@ CHANGELOG.md under "Done" (with what was actually verified) in the
 known so the changelog entry can reference it. This halves PR/CI-run count
 versus a separate docs-only PR per task (2026-08-16).
 
+Issues (title and body) are written in English (2026-09-08), regardless
+of what language the surrounding conversation happens to be in — same
+as commit messages, which are already English-only.
+
 ```
 git checkout -b <branch-name>
 # ... commit the code change(s) ...
