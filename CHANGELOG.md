@@ -16,6 +16,11 @@ by referencing it (`Closes #<n>`) in the PR that resolves it.
 
 ## ✅ Done
 
+- [x] 🌱 ⭐⭐⭐ - **Parallelize the enrichment pipeline and cache by coordinates** (issue #137)
+  - **Verified**: 2026-09-07 (PR #353)
+  - **What was done**: external audit finding — POI lookup (Overpass), Wikidata, and Wikipedia (geosearch + name search) ran one after another even though most don't depend on each other's output. POI lookup and the Wikipedia geosearch only need lat/lon and now run concurrently; Wikidata and the name-matched Wikipedia search depend on the POI's result but not on each other, so they also run concurrently once it resolves. Added a simple in-memory cache (session-lived, keyed on lat/lon rounded to ~11m, 24h TTL) so repeat visits to the same coordinates skip POI/Wikidata/Wikipedia entirely. Reverse geocoding itself is unchanged, still ahead of enrichment (T78).
+  - **Final validation**: `flutter analyze` → 0 issues; `flutter test` → 436/436 (5 existing tests pass unmodified; 2 new cache tests). Dart-only change, no native Kotlin touched.
+
 - [x] 🔧 ⭐⭐⭐ - **Localize service-layer error messages and system notifications** (issue #230)
   - **Verified**: 2026-09-07 (PR #351)
   - **What was done**: split off #129 — every error message the user actually saw was hardcoded French prose, built deep inside plain Dart service classes with no `BuildContext`/`AppLocalizations` to localize with. `GuideErrorKind` existed for exactly this but was never actually read anywhere. Expanded it to 17 specific values covering every failure actually thrown today (busy, no-provider, background-restricted x2, quota/model/service/unusable-response/no-model, network, generic, tts, storage x3, unknown), each carrying an optional sanitized detail. `AudioGuideService.errorMessage` (String?) is now `lastGuideError` (GuideError?); `HistoryStorageException` carries the same shape. A new `guide_error_localizer.dart` maps a kind to a localized message at the UI layer — the only place with a `BuildContext`. `AudioReadyNotifier`'s Android notifications (fire from a background/foreground-service context with no `BuildContext` at all) resolve from the device locale directly instead.
