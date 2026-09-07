@@ -412,5 +412,32 @@
       "detail": {"type": "String"}
     }
   },
-  "guideErrorStorageRotationFailed": "Impossible d'enregistrer la rotation de la photo."
+  "guideErrorStorageRotationFailed": "Impossible d'enregistrer la rotation de la photo.",
+  "quizIconTooltip": "Quiz",
+  "quizScreenTitle": "Quiz",
+  "quizQuestionWhereIsThis": "Où était-ce ?",
+  "quizGeneratingQuestion": "Préparation de la question...",
+  "quizCorrect": "Bien joué !",
+  "quizIncorrect": "C'était : {answer}",
+  "@quizIncorrect": {
+    "placeholders": {
+      "answer": {"type": "String"}
+    }
+  },
+  "quizNext": "Suivant",
+  "quizReplayAudio": "Réécouter",
+  "quizScore": "{correct} / {total} bonnes réponses",
+  "@quizScore": {
+    "placeholders": {
+      "correct": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "quizNotEnoughEntriesTitle": "Pas encore assez d'analyses",
+  "quizNotEnoughEntriesBody": "Il faut au moins {minimum} analyses différentes dans l'historique pour proposer un quiz.",
+  "@quizNotEnoughEntriesBody": {
+    "placeholders": {
+      "minimum": {"type": "int"}
+    }
+  }
 }

@@ -363,5 +363,32 @@
       "detail": {"type": "String"}
     }
   },
-  "guideErrorStorageRotationFailed": "Couldn't save the photo rotation."
+  "guideErrorStorageRotationFailed": "Couldn't save the photo rotation.",
+  "quizIconTooltip": "Quiz",
+  "quizScreenTitle": "Quiz",
+  "quizQuestionWhereIsThis": "Where was this?",
+  "quizGeneratingQuestion": "Preparing the question...",
+  "quizCorrect": "Well done!",
+  "quizIncorrect": "It was: {answer}",
+  "@quizIncorrect": {
+    "placeholders": {
+      "answer": {"type": "String"}
+    }
+  },
+  "quizNext": "Next",
+  "quizReplayAudio": "Replay",
+  "quizScore": "{correct} / {total} correct",
+  "@quizScore": {
+    "placeholders": {
+      "correct": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "quizNotEnoughEntriesTitle": "Not enough analyses yet",
+  "quizNotEnoughEntriesBody": "You need at least {minimum} different analyses in your history to start a quiz.",
+  "@quizNotEnoughEntriesBody": {
+    "placeholders": {
+      "minimum": {"type": "int"}
+    }
+  }
 }
