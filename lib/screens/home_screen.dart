@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/app_update_service.dart';
 import '../services/audio_guide_service.dart';
 import '../services/history_service.dart';
@@ -24,6 +25,29 @@ import '../widgets/kofi_button.dart';
 import 'history_screen.dart';
 import 'map_picker_screen.dart';
 import 'settings_screen.dart';
+
+/// #309 — one entry in the round-robin startup tips list. [isKofi] marks
+/// the one slot that promotes Ko-fi support instead of a feature —
+/// skipped (not shown at all) if the user has hidden the Ko-fi button
+/// elsewhere in Settings, since promoting it in a tip would contradict
+/// that choice.
+class _StartupTip {
+  final String Function(AppLocalizations) text;
+  final bool isKofi;
+  const _StartupTip(this.text, {this.isKofi = false});
+}
+
+final List<_StartupTip> _startupTips = [
+  _StartupTip((l10n) => l10n.startupTipLocalAi),
+  _StartupTip((l10n) => l10n.startupTipScriptStyle),
+  _StartupTip((l10n) => l10n.startupTipFeedbackAnalysis),
+  _StartupTip((l10n) => l10n.startupTipSkip),
+  _StartupTip((l10n) => l10n.startupTipOutputLanguage),
+  _StartupTip((l10n) => l10n.startupTipKofi, isKofi: true),
+  _StartupTip((l10n) => l10n.startupTipAutoPurge),
+  _StartupTip((l10n) => l10n.startupTipPhotoMode),
+  _StartupTip((l10n) => l10n.startupTipHistory),
+];
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -111,7 +135,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // onboarding already explained the app" behavior wanted. Deferred to
     // a post-frame callback since showing a dialog needs a fully built
     // context, not one still inside initState.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _checkWhatsNew());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _runStartupAnnouncements());
+  }
+
+  /// #309 — the startup tip is a lower-priority announcement than
+  /// what's-new: only shown when what's-new didn't already claim this
+  /// launch's attention, so the two never stack on top of each other.
+  /// The launch counter itself still advances on every launch regardless
+  /// (see [SettingsService.incrementLaunchCount]'s own doc), so the ~1-
+  /// in-10 cadence tracks real usage frequency rather than "launches
+  /// where a tip was possible".
+  Future<void> _runStartupAnnouncements() async {
+    final settings = context.read<SettingsService>();
+    await settings.incrementLaunchCount();
+    final showedWhatsNew = await _checkWhatsNew();
+    if (!showedWhatsNew && mounted) {
+      _checkStartupTip();
+    }
   }
 
   /// #299 — shows what changed since the last version this device saw,
@@ -132,12 +172,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   /// HomeScreen, `lastSeenVersion` already equals `currentVersion` and
   /// this whole method is a no-op for it. Null here can therefore only
   /// mean "this device predates the feature", which warrants showing it.
-  Future<void> _checkWhatsNew() async {
+  /// Returns whether the dialog was actually shown this launch — #309's
+  /// startup tip checks this to avoid stacking on top of it.
+  Future<bool> _checkWhatsNew() async {
     AppLogger.info('Whats-new: check starting');
     final info = await PackageInfo.fromPlatform();
     if (!mounted) {
       AppLogger.info('Whats-new: unmounted before check could run');
-      return;
+      return false;
     }
     final settings = context.read<SettingsService>();
     final currentVersion = info.version;
@@ -159,7 +201,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final lastSeen = settings.lastSeenVersion;
     if (lastSeen == currentVersion) {
       AppLogger.info('Whats-new: already seen $currentVersion, skipping');
-      return;
+      return false;
     }
 
     final locale = Localizations.localeOf(context).languageCode;
@@ -182,7 +224,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       await settings.recordSeenVersion(currentVersion);
       AppLogger.info(
           'Whats-new: not showing for $currentVersion (previously $lastSeen) — text empty or unmounted');
-      return;
+      return false;
     }
 
     AppLogger.info('Whats-new: showing dialog for $currentVersion (previously $lastSeen)');
@@ -191,7 +233,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // is the only trace of that ever having happened (see the check at
     // the top of this method).
     await settings.recordWhatsNewShown(currentVersion);
-    if (!mounted) return;
+    if (!mounted) return false;
     final l10n = AppLocalizations.of(context)!;
     showDialog<void>(
       context: context,
@@ -226,6 +268,48 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             child: Text(l10n.commonOk),
           ),
         ],
+      ),
+    );
+    return true;
+  }
+
+  /// #309 — a discreet startup tip shown roughly every 10th launch,
+  /// cycling through [_startupTips] in order (no repeats until the whole
+  /// list has cycled). Never shown the same launch as the what's-new
+  /// dialog (see [_runStartupAnnouncements]) and entirely opt-out via
+  /// [SettingsService.tipsEnabled].
+  void _checkStartupTip() {
+    final settings = context.read<SettingsService>();
+    if (!settings.tipsEnabled) return;
+    if (settings.launchCount % 10 != 0) return;
+
+    var index = settings.tipIndex % _startupTips.length;
+    var skipped = 0;
+    while (_startupTips[index].isKofi &&
+        !settings.showKofiButton &&
+        skipped < _startupTips.length) {
+      index = (index + 1) % _startupTips.length;
+      skipped++;
+    }
+    if (skipped >= _startupTips.length) return;
+
+    final tip = _startupTips[index];
+    settings.setTipIndex((index + 1) % _startupTips.length);
+
+    final l10n = AppLocalizations.of(context)!;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(tip.text(l10n)),
+        duration: const Duration(seconds: 6),
+        action: tip.isKofi
+            ? SnackBarAction(
+                label: l10n.startupTipKofiAction,
+                onPressed: () => launchUrl(
+                  Uri.parse('https://ko-fi.com/tarnaud'),
+                  mode: LaunchMode.externalApplication,
+                ),
+              )
+            : null,
       ),
     );
   }

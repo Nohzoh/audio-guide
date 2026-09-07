@@ -530,6 +530,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onChanged: (value) => settings.setShowKofiButton(value),
             ),
           ),
+          // #309
+          Consumer<SettingsService>(
+            builder: (context, settings, _) => SwitchListTile(
+              title: Text(l10n.settingsShowTips),
+              subtitle: Text(l10n.settingsShowTipsSubtitle),
+              value: settings.tipsEnabled,
+              onChanged: (value) => settings.setTipsEnabled(value),
+            ),
+          ),
           Consumer<SettingsService>(
             builder: (context, settings, _) => SwitchListTile(
               title: Text(l10n.settingsAutoGenerateAudio),

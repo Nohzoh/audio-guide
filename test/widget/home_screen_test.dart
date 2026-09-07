@@ -365,4 +365,95 @@ void main() {
       expect(settings.whatsNewShownVersion, '9.9.9');
     });
   });
+
+  // #309
+  group('startup tip', () {
+    const firstTipText =
+        'Astuce : passez en IA locale dans Réglages pour analyser vos photos '
+        'hors connexion, avec une confidentialité maximale.';
+    const kofiTipText = 'Si AudioLens vous est utile, un petit coup de pouce '
+        'sur Ko-fi aide à faire vivre le projet.';
+    const autoPurgeTipText = 'Astuce : activez la purge automatique de '
+        "l'historique dans Réglages pour libérer de l'espace.";
+
+    Future<void> pumpHome(WidgetTester tester) async {
+      await tester.runAsync(() => tester.pumpWidget(wrapWithProviders(
+            const HomeScreen(),
+            settings: settings,
+            guide: guide,
+            history: history,
+          )));
+      await tester.pump();
+      await tester.runAsync(() async => Future<void>.delayed(Duration.zero));
+      await tester.pump();
+      await tester.pump();
+    }
+
+    testWidgets('shows the next tip on the 10th launch', (tester) async {
+      // Suppresses the whats-new dialog so it doesn't stack with the tip.
+      await settings.recordSeenVersion('9.9.9');
+      for (var i = 0; i < 9; i++) {
+        await settings.incrementLaunchCount();
+      }
+
+      await pumpHome(tester);
+
+      expect(find.text(firstTipText), findsOneWidget);
+      expect(settings.tipIndex, 1);
+    });
+
+    testWidgets('does not show a tip before the 10th launch', (tester) async {
+      await settings.recordSeenVersion('9.9.9');
+      for (var i = 0; i < 8; i++) {
+        await settings.incrementLaunchCount();
+      }
+
+      await pumpHome(tester);
+
+      expect(find.text(firstTipText), findsNothing);
+    });
+
+    testWidgets('shows nothing when tipsEnabled is false', (tester) async {
+      await settings.recordSeenVersion('9.9.9');
+      await settings.setTipsEnabled(false);
+      for (var i = 0; i < 9; i++) {
+        await settings.incrementLaunchCount();
+      }
+
+      await pumpHome(tester);
+
+      expect(find.text(firstTipText), findsNothing);
+    });
+
+    testWidgets('does not show a tip the same launch as the whats-new dialog',
+        (tester) async {
+      // lastSeenVersion differs from the mocked current version ('9.9.9'),
+      // so the whats-new dialog claims this launch instead.
+      await settings.recordSeenVersion('0.0.1');
+      for (var i = 0; i < 9; i++) {
+        await settings.incrementLaunchCount();
+      }
+
+      await pumpHome(tester);
+
+      expect(find.text('Nouveautés'), findsOneWidget);
+      expect(find.text(firstTipText), findsNothing);
+    });
+
+    testWidgets('skips the Ko-fi tip when the Ko-fi button is hidden, '
+        'advancing past it to the next one', (tester) async {
+      await settings.recordSeenVersion('9.9.9');
+      await settings.setShowKofiButton(false);
+      await settings.setTipIndex(5); // the Ko-fi slot in _startupTips
+      for (var i = 0; i < 9; i++) {
+        await settings.incrementLaunchCount();
+      }
+
+      await pumpHome(tester);
+
+      expect(find.text(kofiTipText), findsNothing);
+      expect(find.text(autoPurgeTipText), findsOneWidget);
+      expect(settings.tipIndex, 7);
+    });
+  });
 }

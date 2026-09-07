@@ -571,6 +571,23 @@ void main() {
     expect(settings.autoGenerateAudio, isFalse);
   });
 
+  // #309
+  testWidgets('toggling show-tips updates SettingsService', (tester) async {
+    expect(settings.tipsEnabled, isTrue);
+
+    await tester.pumpWidget(wrapScreen());
+    await tester.pumpAndSettle();
+
+    final toggle = find.widgetWithText(SwitchListTile, 'Afficher des astuces au démarrage');
+    await tester.scrollUntilVisible(toggle, 300, scrollable: find.byType(Scrollable).first);
+    await tester.ensureVisible(toggle);
+    await tester.pumpAndSettle();
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+
+    expect(settings.tipsEnabled, isFalse);
+  });
+
   testWidgets('toggling auto-purge updates SettingsService and reveals the day chips',
       (tester) async {
     expect(settings.autoPurgeEnabled, isFalse);

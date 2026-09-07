@@ -217,6 +217,8 @@
   "feedbackDialogAnalysisImageMissing": "La photo de l'analyse jointe est introuvable. Retirez-la pour pouvoir envoyer votre feedback.",
   "settingsShowKofiButton": "Afficher le bouton de soutien",
   "settingsKofiButtonSubtitle": "Bouton Ko-fi dans l'interface",
+  "settingsShowTips": "Afficher des astuces au démarrage",
+  "settingsShowTipsSubtitle": "Un message occasionnel pour découvrir des fonctionnalités",
   "settingsAutoGenerateAudio": "Générer l'audio automatiquement",
   "settingsAutoGenerateAudioSubtitle": "Désactiver pour garder seulement le script, et générer l'audio plus tard depuis l'historique",
   "settingsAutoPurge": "Purger automatiquement l'historique",
@@ -369,5 +371,15 @@
     "placeholders": {
       "email": {"type": "String"}
     }
-  }
+  },
+  "startupTipLocalAi": "Astuce : passez en IA locale dans Réglages pour analyser vos photos hors connexion, avec une confidentialité maximale.",
+  "startupTipScriptStyle": "Astuce : choisissez le style de narration (immersif, académique, anecdotique, concis) dans Réglages.",
+  "startupTipFeedbackAnalysis": "Astuce : vous pouvez joindre une analyse existante à votre feedback pour signaler un problème précis.",
+  "startupTipSkip": "Astuce : pendant la lecture, avancez ou reculez de 10 secondes avec les boutons de saut.",
+  "startupTipOutputLanguage": "Astuce : la langue de la narration audio se choisit indépendamment de la langue de l'app, dans Réglages.",
+  "startupTipKofi": "Si AudioLens vous est utile, un petit coup de pouce sur Ko-fi aide à faire vivre le projet.",
+  "startupTipKofiAction": "Soutenir",
+  "startupTipAutoPurge": "Astuce : activez la purge automatique de l'historique dans Réglages pour libérer de l'espace.",
+  "startupTipPhotoMode": "Astuce : pendant la lecture, basculez vers la photo plein écran avec l'icône en haut à droite.",
+  "startupTipHistory": "Astuce : retrouvez toutes vos analyses passées dans l'historique, accessible depuis l'icône horloge."
 }
