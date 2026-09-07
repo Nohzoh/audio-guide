@@ -3,6 +3,12 @@
   "commonBack": "Back",
   "commonOk": "OK",
   "whatsNewTitle": "What's new",
+  "whatsNewVersionSubtitle": "Version {version}",
+  "@whatsNewVersionSubtitle": {
+    "placeholders": {
+      "version": {"type": "String"}
+    }
+  },
   "kofiButtonTooltip": "Support AudioLens",
 
   "mapPickerTitle": "Pick the location on the map",

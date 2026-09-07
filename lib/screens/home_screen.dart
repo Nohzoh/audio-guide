@@ -22,6 +22,7 @@ import '../services/share_intent_service.dart';
 import '../utils/app_logger.dart';
 import '../utils/error_sanitizer.dart';
 import '../utils/guide_error_localizer.dart';
+import '../utils/whats_new_parser.dart';
 import '../widgets/kofi_button.dart';
 import 'history_screen.dart';
 import 'map_picker_screen.dart';
@@ -246,10 +247,57 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       // anything, looking exactly like the dialog "erasing itself".
       // Require an explicit OK instead.
       barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(l10n.whatsNewTitle),
-        content: SingleChildScrollView(child: Text(text!)),
-        actions: [
+      builder: (dialogContext) {
+        final theme = Theme.of(dialogContext);
+        final sections = parseWhatsNewSections(text!);
+        return AlertDialog(
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('🎧', style: TextStyle(fontSize: 22)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(l10n.whatsNewTitle),
+                    Text(
+                      l10n.whatsNewVersionSubtitle(currentVersion),
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final section in sections) ...[
+                  if (section.label.isNotEmpty) ...[
+                    Row(
+                      children: [
+                        if (section.icon.isNotEmpty) ...[
+                          Text(section.icon),
+                          const SizedBox(width: 6),
+                        ],
+                        Text(section.label,
+                            style: const TextStyle(fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                  ],
+                  Text(section.content),
+                  if (section != sections.last) const SizedBox(height: 12),
+                ],
+              ],
+            ),
+          ),
+          actions: [
           TextButton(
             onPressed: () {
               settings.recordWhatsNewDismissed(currentVersion);
@@ -270,7 +318,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             child: Text(l10n.commonOk),
           ),
         ],
-      ),
+        );
+      },
     );
     return true;
   }
