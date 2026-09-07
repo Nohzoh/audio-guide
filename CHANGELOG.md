@@ -16,6 +16,11 @@ by referencing it (`Closes #<n>`) in the PR that resolves it.
 
 ## ✅ Done
 
+- [x] ✨ ⭐ - **Render the whats-new dialog with structured sections**
+  - **Verified**: 2026-09-07 (PR #356)
+  - **What was done**: direct request — the dialog used to dump the `ship` skill's whole release-notes paragraph into one flat, unformatted `Text` widget. A new `whats_new_parser.dart` splits it into distinct labeled sections (Nouveautés/New, Corrections/Fixes, Améliorations/Improvements) each with its own icon and bold label, falling back to a single unlabeled section for any other format. Also adds a header icon and the version number as a subtitle.
+  - **Final validation**: `flutter analyze` → 0 issues; `flutter test` → 455/455 (5 new tests). Verified visually on-device on the emulator. Dart-only change, no native Kotlin touched.
+
 - [x] ✨ ⭐⭐⭐ - **Add a gamified quiz screen built from existing history data** (issue #343)
   - **Verified**: 2026-09-07 (PR #354)
   - **What was done**: a new quiz icon on HomeScreen picks a random completed history entry and asks the user to guess it, reusing existing data (no new photo/analysis). "Where was this?" is always available (photo + 4 title-based options); a richer text-comprehension question generated from the entry's cached script is used instead when a Gemini API key is configured, falling back silently to the first type on any generation failure. No score/state is persisted. Gated behind a 5-distinct-title minimum.
