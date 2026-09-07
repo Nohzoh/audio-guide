@@ -332,5 +332,36 @@
   "startupTipKofiAction": "Support",
   "startupTipAutoPurge": "Tip: enable automatic history cleanup in Settings to free up space.",
   "startupTipPhotoMode": "Tip: during playback, switch to the full-screen photo with the icon in the top right.",
-  "startupTipHistory": "Tip: find all your past analyses in History, accessible from the clock icon."
+  "startupTipHistory": "Tip: find all your past analyses in History, accessible from the clock icon.",
+  "guideErrorBusyAnalysis": "An analysis is already in progress.",
+  "guideErrorBusyOperation": "An operation is already in progress.",
+  "guideErrorAiNoProviderConfigured": "No AI service available. Configure an API key in Settings.",
+  "guideErrorAiBackgroundRestricted": "Offline analysis (Gemini Nano) requires the app to stay in the foreground. Try again keeping AudioLens open, or configure a Gemini API key in Settings to allow background analysis.",
+  "guideErrorAiFallbackBackgroundRestricted": "The analysis failed and the offline fallback (Gemini Nano) requires the app to stay in the foreground. Try again keeping AudioLens open.",
+  "guideErrorAiQuotaExceeded": "Google AI quota exceeded. Try again later, or check your API key's limits in Google AI Studio.",
+  "guideErrorAiModelUnavailable": "The configured model is no longer available. Check the model configuration in Settings.",
+  "guideErrorAiServiceUnavailable": "The Google AI service is temporarily unavailable. Try again in a moment.",
+  "guideErrorAiUnusableResponse": "The AI didn't return a usable response. Try again.",
+  "guideErrorAiNoModelConfigured": "No AI model configured.",
+  "guideErrorNetwork": "Couldn't connect to the Google AI service. Check your internet connection.",
+  "guideErrorAiGeneric": "AI analysis failed. {detail}",
+  "@guideErrorAiGeneric": {
+    "placeholders": {
+      "detail": {"type": "String"}
+    }
+  },
+  "guideErrorTts": "Audio playback failed. {detail}",
+  "@guideErrorTts": {
+    "placeholders": {
+      "detail": {"type": "String"}
+    }
+  },
+  "guideErrorStorageDiskFull": "Not enough storage space to save this file. Free up space and try again.",
+  "guideErrorStorageWriteFailed": "Couldn't save the file ({detail}).",
+  "@guideErrorStorageWriteFailed": {
+    "placeholders": {
+      "detail": {"type": "String"}
+    }
+  },
+  "guideErrorStorageRotationFailed": "Couldn't save the photo rotation."
 }

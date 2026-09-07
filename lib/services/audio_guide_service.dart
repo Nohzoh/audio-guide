@@ -133,7 +133,7 @@ class AudioGuideService extends ChangeNotifier {
 
   GuideState _state = GuideState.idle;
   AudioGuideResult? _lastResult;
-  String? _errorMessage;
+  GuideError? _lastGuideError;
   File? _lastImageFile;
   LocationPermissionStatus _lastLocationStatus = LocationPermissionStatus.granted;
 
@@ -173,7 +173,9 @@ class AudioGuideService extends ChangeNotifier {
   /// states after a *finished* analysis, not reasons to block a new one.
   bool get isBusy => _analysisInProgress;
   AudioGuideResult? get lastResult => _lastResult;
-  String? get errorMessage => _errorMessage;
+  /// #230: the *code* for the last failure (localize via
+  /// `localizeGuideError` at display time), not raw prose.
+  GuideError? get lastGuideError => _lastGuideError;
   String get providerName => _providerManager.providerName;
   File? get lastImageFile => _lastImageFile;
   /// #298: used by main.dart's routing to decide Onboarding vs Home —
@@ -302,7 +304,7 @@ class AudioGuideService extends ChangeNotifier {
     int? entryId,
   }) async {
     if (_analysisInProgress || _state == GuideState.cancelling) {
-      _errorMessage = 'Une analyse est déjà en cours.';
+      _lastGuideError = const GuideError(GuideErrorKind.busyAnalysis);
       _state = GuideState.error;
       notifyListeners();
       return null;
@@ -311,7 +313,7 @@ class AudioGuideService extends ChangeNotifier {
     final service = _providerManager.currentService;
     if (service == null) {
       _state = GuideState.error;
-      _errorMessage = 'Aucun service IA disponible. Configurez une clé API dans les paramètres.';
+      _lastGuideError = const GuideError(GuideErrorKind.aiNoProviderConfigured);
       notifyListeners();
       return null;
     }
@@ -333,7 +335,7 @@ class AudioGuideService extends ChangeNotifier {
       _currentStep = 0;
       _progressEstimator.stepProgress = 0.0;
       _lastImageFile = imageFile;
-      _errorMessage = null;
+      _lastGuideError = null;
       notifyListeners();
 
       // Check for cancellation before starting
@@ -402,13 +404,7 @@ class AudioGuideService extends ChangeNotifier {
         // (see PRIVACY.md), so silently sending their photo to Gemini API
         // instead would be a real overstep — just report it clearly.
         if (analysisError is GeminiNanoBackgroundRestrictedException) {
-          throw const GuideError(
-            GuideErrorKind.ai,
-            'L\'analyse hors-ligne (Gemini Nano) nécessite que l\'application '
-            'reste au premier plan. Réessayez en gardant AudioLens ouvert, ou '
-            'configurez une clé Gemini API dans les réglages pour permettre '
-            'l\'analyse en arrière-plan.',
-          );
+          throw const GuideError(GuideErrorKind.aiBackgroundRestricted);
         }
         final message = sanitizeError(analysisError.toString());
         if (_providerManager.activeProvider == AIProvider.geminiApi &&
@@ -432,15 +428,16 @@ class AudioGuideService extends ChangeNotifier {
             _lastProviderFallbackToNano = true;
             _lastAiModel = 'Gemini Nano';
           } on GeminiNanoBackgroundRestrictedException {
-            throw const GuideError(
-              GuideErrorKind.ai,
-              'L\'analyse a échoué et le repli hors-ligne (Gemini Nano) '
-              'nécessite que l\'application reste au premier plan. '
-              'Réessayez en gardant AudioLens ouvert.',
-            );
+            throw const GuideError(GuideErrorKind.aiFallbackBackgroundRestricted);
           }
         } else {
-          throw GuideError(GuideErrorKind.ai, 'Analyse IA impossible. $message');
+          // #230: a GuideError thrown by the provider service itself (e.g.
+          // GeminiApiService's granular quota/model/service/network kind)
+          // is propagated as-is, preserving its specific kind — only a
+          // truly generic exception gets wrapped with the catch-all kind.
+          throw analysisError is GuideError
+              ? analysisError
+              : GuideError(GuideErrorKind.aiGeneric, message);
         }
       }
       final analysisDuration = DateTime.now().difference(analyzeStart).inMilliseconds;
@@ -511,7 +508,8 @@ class AudioGuideService extends ChangeNotifier {
         return null;
       }
       _state = GuideState.error;
-      _errorMessage = sanitizeError(e.toString());
+      _lastGuideError =
+          e is GuideError ? e : GuideError(GuideErrorKind.unknown, sanitizeError(e.toString()));
       notifyListeners();
       await _audioReadyNotifier.notifyFailed();
       return null;
@@ -626,7 +624,7 @@ class AudioGuideService extends ChangeNotifier {
     String? language,
   }) async {
     if (_analysisInProgress || _state == GuideState.cancelling) {
-      _errorMessage = 'Une opération est déjà en cours.';
+      _lastGuideError = const GuideError(GuideErrorKind.busyOperation);
       _state = GuideState.error;
       notifyListeners();
       return null;
@@ -641,7 +639,7 @@ class AudioGuideService extends ChangeNotifier {
 
     try {
       _lastResult = AudioGuideResult(title: title, script: script, locationName: locationName);
-      _errorMessage = null;
+      _lastGuideError = null;
       notifyListeners();
 
       await _synthesizeAndPlay(script, language: language, cancelToken: cancelToken);
@@ -655,7 +653,8 @@ class AudioGuideService extends ChangeNotifier {
         return null;
       }
       _state = GuideState.error;
-      _errorMessage = sanitizeError(e.toString());
+      _lastGuideError =
+          e is GuideError ? e : GuideError(GuideErrorKind.unknown, sanitizeError(e.toString()));
       notifyListeners();
       await _audioReadyNotifier.notifyFailed();
       return null;
@@ -714,7 +713,7 @@ class AudioGuideService extends ChangeNotifier {
 
   Future<void> cancelCurrentAction() async {
     _progressEstimator.stop();
-    _errorMessage = null;
+    _lastGuideError = null;
 
     // Cancel all ongoing operations. #322: deliberately NOT resetting
     // _analysisInProgress here (it used to be) — analyzeAndPlay()/

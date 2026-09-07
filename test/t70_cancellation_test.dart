@@ -76,6 +76,6 @@ void main() {
     final result = await future;
     expect(result, isNull);
     expect(service.state, GuideState.idle);
-    expect(service.errorMessage, isNull);
+    expect(service.lastGuideError, isNull);
   }, timeout: const Timeout(Duration(seconds: 10)));
 }

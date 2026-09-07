@@ -55,8 +55,7 @@ class TtsOrchestrator {
           await nativeTts.speak(script, cancelToken: cancelToken, speed: speed);
           return 'native-tts';
         } catch (fallbackError) {
-          throw GuideError(GuideErrorKind.tts,
-              'La lecture audio a échoué. ${sanitizeError(fallbackError.toString())}');
+          throw GuideError(GuideErrorKind.tts, sanitizeError(fallbackError.toString()));
         }
       }
     }
@@ -64,7 +63,7 @@ class TtsOrchestrator {
       await nativeTts.speak(script, cancelToken: cancelToken, speed: speed);
       return 'native-tts';
     } catch (ttsError) {
-      throw GuideError(GuideErrorKind.tts, 'La lecture audio a échoué. ${sanitizeError(ttsError.toString())}');
+      throw GuideError(GuideErrorKind.tts, sanitizeError(ttsError.toString()));
     }
   }
 
@@ -120,8 +119,7 @@ class TtsOrchestrator {
         await nativeTts.speak(script, cancelToken: cancelToken, speed: speed);
         return 'native-tts';
       } catch (fallbackError) {
-        throw GuideError(GuideErrorKind.tts,
-            'La lecture audio a échoué. ${sanitizeError(fallbackError.toString())}');
+        throw GuideError(GuideErrorKind.tts, sanitizeError(fallbackError.toString()));
       }
     }
 
@@ -170,8 +168,7 @@ class TtsOrchestrator {
           try {
             await nativeTts.speak(remaining, cancelToken: cancelToken, speed: speed);
           } catch (fallbackError) {
-            throw GuideError(GuideErrorKind.tts,
-                'La lecture audio a échoué. ${sanitizeError(fallbackError.toString())}');
+            throw GuideError(GuideErrorKind.tts, sanitizeError(fallbackError.toString()));
           }
           return 'native-tts';
         }

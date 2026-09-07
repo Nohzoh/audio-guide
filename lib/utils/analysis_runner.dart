@@ -2,12 +2,14 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
+import '../l10n/app_localizations.dart';
 import '../screens/map_picker_screen.dart';
 import '../screens/player_screen.dart';
 import '../services/audio_guide_service.dart';
 import '../services/history_service.dart';
 import '../services/settings_service.dart';
 import 'app_logger.dart';
+import 'guide_error_localizer.dart';
 
 /// Runs the full analysis pipeline for [imageFile], persists the result to
 /// the [entryId] history entry, and navigates to [PlayerScreen] to show
@@ -42,7 +44,7 @@ Future<void> runAnalysisAndNavigate({
   if (guide.isBusy) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Une analyse est déjà en cours.')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.guideErrorBusyAnalysis)),
       );
     }
     return;
@@ -113,7 +115,9 @@ Future<void> runAnalysisAndNavigate({
         // cache write failed (T116), so surface it without blocking the
         // rest of the flow.
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(
+                  localizeHistoryStorageException(AppLocalizations.of(context)!, e))));
         }
       }
     } else if (guide.state == GuideState.speaking) {

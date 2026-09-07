@@ -4,16 +4,19 @@ import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import '../constants/analysis_provenance.dart';
+import '../models/guide_error.dart';
 
 /// Thrown when copying a photo or audio file to permanent storage fails
 /// (T116) — most commonly because the device is out of storage. Callers
-/// should catch this and show [message] to the user instead of letting a
-/// raw I/O exception surface.
+/// should catch this and localize [kind]/[detail] via
+/// `localizeHistoryStorageException` (#230) instead of letting a raw I/O
+/// exception surface.
 class HistoryStorageException implements Exception {
-  final String message;
-  const HistoryStorageException(this.message);
+  final GuideErrorKind kind;
+  final String? detail;
+  const HistoryStorageException(this.kind, [this.detail]);
   @override
-  String toString() => message;
+  String toString() => detail == null ? kind.name : '${kind.name}: $detail';
 }
 
 /// ENOSPC ("no space left on device") on Linux/Android.
@@ -24,11 +27,10 @@ Future<void> _copyFileOrThrowStorageError(File source, String destPath) async {
     await source.copy(destPath);
   } on FileSystemException catch (e) {
     if (e.osError?.errorCode == _enospc) {
-      throw const HistoryStorageException(
-          "Espace de stockage insuffisant pour enregistrer ce fichier. Libérez de l'espace et réessayez.");
+      throw const HistoryStorageException(GuideErrorKind.storageDiskFull);
     }
     throw HistoryStorageException(
-        "Impossible d'enregistrer le fichier (${e.osError?.message ?? e.message}).");
+        GuideErrorKind.storageWriteFailed, e.osError?.message ?? e.message);
   }
 }
 
@@ -807,8 +809,7 @@ class HistoryService extends ChangeNotifier {
       final stillIdx = _entries.indexWhere((e) => e.id == entryId);
       if (stillIdx != -1) _entries[stillIdx] = previous;
       notifyListeners();
-      throw const HistoryStorageException(
-          "Impossible d'enregistrer la rotation de la photo.");
+      throw const HistoryStorageException(GuideErrorKind.storageRotationFailed);
     }
   }
 
