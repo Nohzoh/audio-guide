@@ -451,11 +451,9 @@ void main() {
 
     await expectLater(
       service.analyzeImage(tempImage()),
-      throwsA(isA<Exception>().having(
-        (e) => e.toString(),
-        'message',
-        contains('Gemini API erreur 500'),
-      )),
+      throwsA(isA<GuideError>()
+          .having((e) => e.kind, 'kind', GuideErrorKind.aiGeneric)
+          .having((e) => e.detail, 'detail', contains('HTTP 500'))),
     );
 
     expect(requested, hasLength(1));
