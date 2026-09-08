@@ -16,6 +16,11 @@ by referencing it (`Closes #<n>`) in the PR that resolves it.
 
 ## ✅ Done
 
+- [x] ✨ ⭐ - **Improve the startup tip SnackBar's rendering** (issue #363)
+  - **Verified**: 2026-09-08 (PR #364)
+  - **What was done**: direct request — the startup tip (#309) used a plain default SnackBar with no icon, indistinguishable from other notifications. Tested three variants on-device with the user and picked one: lightbulb emoji + floating, rounded SnackBar + tinted amber background/border. Also fixed a layout bug found while testing — the floating margin overlapped the "Take a photo" CTA on a 3-line tip.
+  - **Final validation**: `flutter analyze` → 0 issues; `flutter test` → 454/455 (one pre-existing, unrelated flaky test). Verified visually on-device across all variants. Dart-only change, no native Kotlin touched.
+
 - [x] 🔧 ⭐ - **Require issues to be written in English** (issue #361)
   - **Verified**: 2026-09-08 (PR #362)
   - **What was done**: many issues filed recently were written in French (matching the conversation language with the user). `AGENTS.md` now states explicitly that issues (title and body) are always written in English, regardless of conversation language — same as commit messages. The local `land` skill definition was updated the same way.
