@@ -93,7 +93,16 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.mapPickerTitle),
+        // #367: the default single-line AppBar title truncated this
+        // (comparatively long) string next to the "Skip" action button —
+        // FittedBox scales it down to whatever width is actually left
+        // instead of a fixed font size, so it stays correct across
+        // locales (French runs longer) and accessibility text scaling.
+        title: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(l10n.mapPickerTitle, maxLines: 1),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
