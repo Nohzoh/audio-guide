@@ -183,8 +183,14 @@ class GeminiApiService implements AIService {
           final err = _tryDecode(resp.body);
           final msg = (err?['error']?['message'] as String?) ?? resp.body;
           attempts.add('✗ $model (${resp.statusCode}): $msg');
-          throw Exception(
-            'Gemini API erreur ${resp.statusCode} sur $model:\n$msg',
+          // #368: a non-retryable HTTP status (e.g. 400 bad request) aborts
+          // the whole retry-across-models loop outright, unlike 429/404/503
+          // above — but must still go through GuideErrorKind like every
+          // other failure here, not hardcoded prose, so the UI localizes it
+          // instead of leaking untranslated text (#230's original gap).
+          throw GuideError(
+            GuideErrorKind.aiGeneric,
+            sanitizeError('HTTP ${resp.statusCode} on $model: $msg'),
           );
         }
       } catch (e) {
@@ -192,7 +198,7 @@ class GeminiApiService implements AIService {
         // be treated as "this model failed, try the next one" (T70) — the
         // user asked to stop, not to keep burning quota on fallbacks.
         if (e is CancelledException) rethrow;
-        if (e is Exception && e.toString().contains('Gemini API erreur')) rethrow;
+        if (e is GuideError) rethrow;
         attempts.add('✗ $model (timeout/réseau): ${sanitizeError(e.toString())}');
         lastFailure = _GeminiFailure.network;
         continue;
