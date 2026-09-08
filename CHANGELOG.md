@@ -16,6 +16,11 @@ by referencing it (`Closes #<n>`) in the PR that resolves it.
 
 ## ✅ Done
 
+- [x] 🐛 ⭐ - **Fix hardcoded French leaking into Gemini's generic HTTP error message** (issue #368)
+  - **Verified**: 2026-09-08 (PR #369)
+  - **What was done**: `GeminiApiService`'s non-retryable HTTP status branch now throws `GuideError(GuideErrorKind.aiGeneric, ...)` instead of a hardcoded-French `Exception`, so the message is localized like every other failure path — a gap left out of #230's original scope.
+  - **Final validation**: `flutter analyze` → 0 issues; `flutter test` → 455/455
+
 - [x] ✨ ⭐ - **Improve the startup tip SnackBar's rendering** (issue #363)
   - **Verified**: 2026-09-08 (PR #364)
   - **What was done**: direct request — the startup tip (#309) used a plain default SnackBar with no icon, indistinguishable from other notifications. Tested three variants on-device with the user and picked one: lightbulb emoji + floating, rounded SnackBar + tinted amber background/border. Also fixed a layout bug found while testing — the floating margin overlapped the "Take a photo" CTA on a 3-line tip.
