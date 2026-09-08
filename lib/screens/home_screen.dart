@@ -350,7 +350,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final l10n = AppLocalizations.of(context)!;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(tip.text(l10n)),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: const Color(0xFF3D3418),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: Colors.amber.withValues(alpha: 0.4)),
+        ),
+        // #363: clears the 64dp "Take a photo" CTA (24dp outer padding
+        // + its own height) sitting at the very bottom of this screen —
+        // 84 landed right on top of it, overlapping on a 3-line tip.
+        margin: const EdgeInsets.fromLTRB(12, 0, 12, 100),
+        content: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('💡', style: TextStyle(fontSize: 20)),
+            const SizedBox(width: 10),
+            Expanded(child: Text(tip.text(l10n))),
+          ],
+        ),
         duration: const Duration(seconds: 6),
         action: tip.isKofi
             ? SnackBarAction(
