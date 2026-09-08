@@ -16,6 +16,11 @@ by referencing it (`Closes #<n>`) in the PR that resolves it.
 
 ## ✅ Done
 
+- [x] 🔧 ⭐⭐ - **Move settings' remote-config dump and dev tools to a new Advanced screen** (issue #366)
+  - **Verified**: 2026-09-08 (PR #371)
+  - **What was done**: found during a full emulator tour — the raw remote-config dump and "View logs"/"View source code" buttons sat unconditionally in the main Settings scroll between ordinary user toggles. Moved into a new `AdvancedSettingsScreen`, reached via a single entry-point button, mirroring `about_analysis_screen.dart`'s existing pattern for technical detail.
+  - **Final validation**: `flutter analyze` → 0 issues; `flutter test` → 455/455
+
 - [x] 🐛 ⭐ - **Prevent MapPickerScreen's AppBar title from truncating** (issue #367)
   - **Verified**: 2026-09-08 (PR #370)
   - **What was done**: wrapped the AppBar title in `FittedBox(fit: BoxFit.scaleDown)` so it scales to fit instead of truncating, robust to locale length and accessibility text scaling — found during a full emulator tour.

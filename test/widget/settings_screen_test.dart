@@ -608,12 +608,20 @@ void main() {
     expect(find.text('30 jours'), findsOneWidget);
   });
 
-  testWidgets('the version label renders from the mocked PackageInfo', (tester) async {
+  testWidgets(
+      'the version label renders from the mocked PackageInfo, on the Advanced screen (#366)',
+      (tester) async {
     await tester.pumpWidget(wrapScreen());
     await tester.pumpAndSettle();
 
-    // #145 pushed this section further down the list — same offscreen-child
-    // issue as the toggles above.
+    // #366: the config/version block moved off the main Settings scroll
+    // into its own "Advanced" screen, reached via a single entry-point
+    // button.
+    final advancedButton = find.widgetWithText(OutlinedButton, 'Avancé');
+    await tester.scrollUntilVisible(advancedButton, 300, scrollable: find.byType(Scrollable).first);
+    await tester.tap(advancedButton);
+    await tester.pumpAndSettle();
+
     final versionLabel = find.text('Version : 0.1.5 (42)');
     await tester.scrollUntilVisible(versionLabel, 300, scrollable: find.byType(Scrollable).first);
 

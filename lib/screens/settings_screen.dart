@@ -2,8 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'logs_screen.dart';
+import 'advanced_settings_screen.dart';
 import 'nano_prompt_lab_screen.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
@@ -13,11 +12,10 @@ import '../services/audio_guide_service.dart';
 import '../services/feedback_service.dart';
 import '../services/gemini_nano_service.dart' show NanoDeviceStatus;
 import '../services/history_service.dart';
-import '../services/remote_config_service.dart';
 import '../services/secure_key_storage.dart';
 import '../services/settings_service.dart';
 import '../widgets/kofi_button.dart';
-import '../utils/build_info.dart';
+import '../widgets/section_header.dart';
 import '../utils/date_format_utils.dart';
 import '../utils/exif_strip.dart';
 
@@ -207,7 +205,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.all(24),
         children: [
           // #145
-          _SectionHeader(l10n.settingsAppearanceSection),
+          SectionHeader(l10n.settingsAppearanceSection),
           const SizedBox(height: 8),
           Consumer<SettingsService>(
             builder: (context, settings, _) => SegmentedButton<ThemeMode>(
@@ -243,7 +241,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // App interface language, independent of the narration language
           // below — lets testers switch it without touching Android's
           // system or per-app language settings.
-          _SectionHeader(l10n.settingsLanguageSection),
+          SectionHeader(l10n.settingsLanguageSection),
           const SizedBox(height: 8),
           Consumer<SettingsService>(
             builder: (context, settings, _) => SegmentedButton<String?>(
@@ -264,7 +262,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 32),
 
           // Provider status
-          _SectionHeader(l10n.settingsActiveAiEngine),
+          SectionHeader(l10n.settingsActiveAiEngine),
           const SizedBox(height: 8),
           _ProviderCard(
             icon: Icons.phone_android,
@@ -309,7 +307,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             key: _apiKeySectionKey,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _SectionHeader(l10n.settingsApiKeySectionTitle),
+              SectionHeader(l10n.settingsApiKeySectionTitle),
               const SizedBox(height: 8),
               Text(
                 l10n.settingsGetFreeKey,
@@ -367,129 +365,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           const SizedBox(height: 32),
 
-          // Active config section
-          _SectionHeader(l10n.settingsActiveConfig),
+          // #366: entry point to the raw remote-config dump + developer
+          // tools (View logs, View source code) — moved off the main
+          // scroll into their own opt-in screen, see
+          // advanced_settings_screen.dart's doc comment for why.
+          SectionHeader(l10n.settingsTools),
           const SizedBox(height: 8),
-          Builder(builder: (context) {
-            final cfg = RemoteConfigService.current;
-            final loadedAt = RemoteConfigService.loadedAt;
-            final fromRemote = RemoteConfigService.loadedFromRemote;
-            final theme = Theme.of(context);
-            final dimText = theme.colorScheme.onSurface.withValues(alpha: 0.38);
-            return Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(children: [
-                    Icon(
-                      fromRemote ? Icons.cloud_done : Icons.cloud_off,
-                      size: 14,
-                      color: fromRemote ? Colors.greenAccent : Colors.orange,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      fromRemote
-                          ? l10n.settingsConfigFromGithub
-                          : l10n.settingsConfigDefaultOffline,
-                      style: TextStyle(
-                        color: fromRemote ? Colors.greenAccent : Colors.orange,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ]),
-                  if (loadedAt != null) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      l10n.settingsUpdatedAt(formatLocalDateTime(
-                          loadedAt, Localizations.localeOf(context).toString())),
-                      style: TextStyle(color: dimText, fontSize: 11),
-                    ),
-                  ],
-                  if (_appVersion != null) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      l10n.settingsVersionLabel(_appVersion!),
-                      style: TextStyle(color: dimText, fontSize: 11),
-                    ),
-                  ],
-                  const SizedBox(height: 4),
-                  Text(
-                    l10n.settingsBuildLabel(formatBuildDate(
-                        buildDate,
-                        Localizations.localeOf(context).toString(),
-                        l10n.settingsBuildDateUnavailable)),
-                    style: TextStyle(color: dimText, fontSize: 11),
-                  ),
-                  Divider(
-                      height: 20,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.12)),
-                  _ConfigRow(l10n.settingsConfigModel, cfg.geminiModel),
-                  _ConfigRow(l10n.settingsConfigFallbacks, cfg.geminiModelFallbacks.join(', ')),
-                  _ConfigRow(l10n.settingsConfigTtsModel, cfg.geminiTtsModel),
-                  _ConfigRow(l10n.settingsConfigTtsVoice, cfg.geminiTtsVoice),
-                  _ConfigRow(l10n.settingsConfigMaxTokens, cfg.geminiMaxTokens.toString()),
-                  _ConfigRow(
-                      l10n.settingsConfigThinkingBudget, cfg.geminiThinkingBudget.toString()),
-                  _ConfigRow(
-                      l10n.settingsConfigWikipediaRadius, '${cfg.wikipediaRadiusMeters}m'),
-                  _ConfigRow(l10n.settingsConfigTtsSpeed, cfg.ttsSpeed.toString()),
-                ],
-              ),
-            );
-          }),
-
-          const SizedBox(height: 12),
           OutlinedButton.icon(
-            icon: const Icon(Icons.refresh, size: 16),
-            label: Text(l10n.settingsRefreshConfig),
+            icon: const Icon(Icons.tune, size: 16),
+            label: Text(l10n.settingsAdvancedTitle),
             style: OutlinedButton.styleFrom(
               minimumSize: const Size(double.infinity, 44),
             ),
-            onPressed: () async {
-              await RemoteConfigService.forceRefresh();
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                      content: Text(
-                    RemoteConfigService.loadedFromRemote
-                        ? l10n.settingsConfigUpdatedFromGithub
-                        : l10n.settingsConfigUnreachable,
-                  )),
-                );
-                (context as Element).markNeedsBuild();
-              }
-            },
+            onPressed: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const AdvancedSettingsScreen())),
           ),
-
-          const SizedBox(height: 32),
-
-          // Developer tools
-          _SectionHeader(l10n.settingsTools),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            icon: const Icon(Icons.terminal, size: 16),
-            label: Text(l10n.settingsViewLogs),
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 44),
-            ),
-            onPressed: () => Navigator.push(
-                context, MaterialPageRoute(builder: (_) => const LogsScreen())),
-          ),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            icon: const Icon(Icons.code, size: 16),
-            label: Text(l10n.settingsViewSourceCode),
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 44),
-            ),
-            onPressed: () => launchUrl(
-              Uri.parse('https://github.com/Nohzoh/AudioLens'),
-              mode: LaunchMode.externalApplication,
+          Padding(
+            padding: const EdgeInsets.only(top: 4, left: 4),
+            child: Text(
+              l10n.settingsAdvancedSubtitle,
+              style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.54)),
             ),
           ),
           // #294: only shown when this build actually has the Telegram
@@ -578,7 +474,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           const SizedBox(height: 24),
 
-          _SectionHeader(l10n.settingsVoiceSection),
+          SectionHeader(l10n.settingsVoiceSection),
           const SizedBox(height: 8),
           Consumer<AudioGuideService>(
             builder: (context, guide, _) => SegmentedButton<String>(
@@ -611,7 +507,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           const SizedBox(height: 32),
 
-          _SectionHeader(l10n.settingsPlaybackSpeed),
+          SectionHeader(l10n.settingsPlaybackSpeed),
           const SizedBox(height: 8),
           Consumer<AudioGuideService>(
             builder: (context, guide, _) => Wrap(
@@ -635,7 +531,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           const SizedBox(height: 32),
 
-          _SectionHeader(l10n.settingsScriptStyleSection),
+          SectionHeader(l10n.settingsScriptStyleSection),
           const SizedBox(height: 4),
           Text(
             l10n.settingsScriptStyleSubtitle,
@@ -674,7 +570,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 32),
 
           // #130
-          _SectionHeader(l10n.settingsOutputLanguageSection),
+          SectionHeader(l10n.settingsOutputLanguageSection),
           const SizedBox(height: 4),
           Text(
             l10n.settingsOutputLanguageSubtitle,
@@ -739,23 +635,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  const _SectionHeader(this.title);
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Text(
-      title.toUpperCase(),
-      style: theme.textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.38),
-            letterSpacing: 1.2,
-          ),
     );
   }
 }
@@ -841,38 +720,6 @@ class _ProviderCard extends StatelessWidget {
           onTap: onTap,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
-      ),
-    );
-  }
-}
-
-class _ConfigRow extends StatelessWidget {
-  final String label;
-  final String value;
-  const _ConfigRow(this.label, this.value);
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 130,
-            child: Text(label,
-                style: TextStyle(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.54),
-                    fontSize: 12)),
-          ),
-          Expanded(
-            child: Text(value,
-                style: TextStyle(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.70),
-                    fontSize: 12)),
-          ),
-        ],
       ),
     );
   }

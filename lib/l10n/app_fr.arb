@@ -204,6 +204,8 @@
   "settingsConfigUnreachable": "Impossible de joindre GitHub, config par défaut",
   "settingsTools": "Outils",
   "settingsViewLogs": "Voir les logs",
+  "settingsAdvancedTitle": "Avancé",
+  "settingsAdvancedSubtitle": "Config active, logs, code source",
   "settingsSendFeedback": "Envoyer un feedback",
   "feedbackDialogTitle": "Envoyer un feedback",
   "feedbackDialogHint": "Décrivez le problème ou votre suggestion...",
