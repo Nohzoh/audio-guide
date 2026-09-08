@@ -16,6 +16,11 @@ by referencing it (`Closes #<n>`) in the PR that resolves it.
 
 ## ✅ Done
 
+- [x] 🐛 ⭐ - **Prevent MapPickerScreen's AppBar title from truncating** (issue #367)
+  - **Verified**: 2026-09-08 (PR #370)
+  - **What was done**: wrapped the AppBar title in `FittedBox(fit: BoxFit.scaleDown)` so it scales to fit instead of truncating, robust to locale length and accessibility text scaling — found during a full emulator tour.
+  - **Final validation**: `flutter analyze` → 0 issues; `flutter test` → 455/455
+
 - [x] 🐛 ⭐ - **Fix hardcoded French leaking into Gemini's generic HTTP error message** (issue #368)
   - **Verified**: 2026-09-08 (PR #369)
   - **What was done**: `GeminiApiService`'s non-retryable HTTP status branch now throws `GuideError(GuideErrorKind.aiGeneric, ...)` instead of a hardcoded-French `Exception`, so the message is localized like every other failure path — a gap left out of #230's original scope.
