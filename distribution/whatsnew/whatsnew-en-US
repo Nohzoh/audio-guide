@@ -1,1 +1,2 @@
-Improvements: the "what's new" and tip popups are easier to read, with clearer formatting (icons, distinct sections).
+Improvements: Settings is decluttered — technical/debug info (config details, logs, source code) moved to a new "Advanced" screen.
+Fixes: the map location picker's title no longer gets cut off; some error messages no longer mix languages.

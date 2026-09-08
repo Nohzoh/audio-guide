@@ -1,1 +1,2 @@
-Améliorations : les popups "nouveautés" et astuces sont plus lisibles et mieux mises en forme (icônes, sections distinctes).
+Améliorations : les Réglages sont allégés — infos techniques/debug (config, logs, code source) déplacées dans un nouvel écran "Avancé".
+Corrections : le titre du sélecteur de carte ne se coupe plus ; certains messages d'erreur ne mélangent plus les langues.
