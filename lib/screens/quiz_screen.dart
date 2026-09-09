@@ -209,13 +209,13 @@ class _QuizScreenState extends State<QuizScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          Text(
-            _textQuestion?.question ?? l10n.quizQuestionWhereIsThis,
-            style: Theme.of(context).textTheme.titleMedium,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
           if (_loadingQuestion)
+            // Found via user feedback: showing the guess-the-place text
+            // here while a text-comprehension question is still being
+            // generated is misleading — it isn't necessarily the question
+            // that ends up being asked, since a successful Gemini call
+            // replaces it entirely once _nextQuestion()'s setState below
+            // runs. The loading state speaks for itself instead.
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 24),
               child: Column(
@@ -226,7 +226,13 @@ class _QuizScreenState extends State<QuizScreen> {
                 ],
               ),
             )
-          else
+          else ...[
+            Text(
+              _textQuestion?.question ?? l10n.quizQuestionWhereIsThis,
+              style: Theme.of(context).textTheme.titleMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
             ..._options.map((option) => _OptionButton(
                   label: option,
                   isCorrect: option == correctAnswer,
@@ -234,6 +240,7 @@ class _QuizScreenState extends State<QuizScreen> {
                   answered: answered,
                   onTap: () => _answer(option),
                 )),
+          ],
           if (answered) ...[
             const SizedBox(height: 8),
             Text(
