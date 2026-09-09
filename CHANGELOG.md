@@ -16,6 +16,11 @@ by referencing it (`Closes #<n>`) in the PR that resolves it.
 
 ## ✅ Done
 
+- [x] ⚡ ⭐ - **CI quick wins: pin Java version, skip unused SDK defaults, drop debug residue** (issue #386)
+  - **Verified**: 2026-09-09 (PR #391)
+  - **What was done**: first sub-issue of the CI pipeline review (#385). Pinned `actions/setup-java` to an exact Zulu patch instead of a floating version, skipped `setup-android`'s unused default package install, removed a stale unconditional debug-dump step.
+  - **Final validation**: docs/CI-only change; the PR's own `build` check is the real test.
+
 - [x] 🔒 ⭐⭐ - **Fix CodeQL cache-poisoning injection + missing job permissions** (issue #382)
   - **Verified**: 2026-09-09 (PR #383)
   - **What was done**: found reviewing the repo's Security tab — 2 CodeQL errors (`actions/cache-poisoning/code-injection` in test.yml/build-android.yml's `changes` job, from interpolating attacker-controlled changed-file names straight into a shell script on a privileged `push`-to-main trigger) and 3 warnings (jobs missing an explicit `permissions:` block). Fixed by passing the value through `env:` and adding `permissions: contents: read` to the three read-only jobs.
