@@ -174,14 +174,22 @@ jobs:
       - name: Add FileProvider
         run: scripts/ci/add_file_provider.sh
 
+      # #390: a pull_request build only ever needs to prove it *can* sign
+      # a release build (non-debuggable, R8, etc.) — never the real
+      # production key, which only push (to main) and workflow_dispatch
+      # actually need. Picks the throwaway CI-only key on pull_request,
+      # the real one otherwise. This closes the same gap #382's follow-up
+      # closed for Dependabot specifically (whose PRs can't see regular
+      # Actions secrets at all) — but any other same-repo PR still had
+      # normal access to the real key until now.
       - name: Setup keystore
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/audiolens.jks
+          echo "${{ github.event_name == 'pull_request' && secrets.CI_KEYSTORE_BASE64 || secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/audiolens.jks
           cat > android/key.properties << EOF
           storeFile=audiolens.jks
-          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
-          keyAlias=${{ secrets.KEY_ALIAS }}
-          keyPassword=${{ secrets.KEYSTORE_PASSWORD }}
+          storePassword=${{ github.event_name == 'pull_request' && secrets.CI_KEYSTORE_PASSWORD || secrets.KEYSTORE_PASSWORD }}
+          keyAlias=${{ github.event_name == 'pull_request' && secrets.CI_KEY_ALIAS || secrets.KEY_ALIAS }}
+          keyPassword=${{ github.event_name == 'pull_request' && secrets.CI_KEYSTORE_PASSWORD || secrets.KEYSTORE_PASSWORD }}
           EOF
           echo "âœ… Keystore ready"
 
@@ -215,7 +223,15 @@ jobs:
       # transform at runtime; the key must match exactly on both sides).
       # Computed once here (not duplicated in both build steps below) and
       # exported via $GITHUB_ENV so later steps in this job can read it.
+      #
+      # #390: skipped on pull_request — a PR's release-build sanity check
+      # doesn't need working feedback-submission credentials embedded,
+      # only push/workflow_dispatch builds that might actually be
+      # distributed/tested do. The dart-define flags below simply embed
+      # empty strings when this step didn't run, same as an unconfigured
+      # local/dev build already handles.
       - name: Obfuscate Telegram secrets for embedding
+        if: github.event_name != 'pull_request'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
