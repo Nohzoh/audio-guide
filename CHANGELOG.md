@@ -16,6 +16,11 @@ by referencing it (`Closes #<n>`) in the PR that resolves it.
 
 ## ✅ Done
 
+- [x] 🔒 ⭐⭐ - **Use a throwaway CI-only signing key for all pull_request builds** (issue #390)
+  - **Verified**: 2026-09-09 (PR #394)
+  - **What was done**: fifth sub-issue of the CI pipeline review (#385). Extended the Dependabot-specific throwaway signing key (#382 follow-up) to *every* `pull_request` build, not just Dependabot's — a regular same-repo PR's release-build sanity check never needed the real production keystore either. Same treatment for the Telegram secrets.
+  - **Final validation**: docs/CI-only change; the PR's own `build` check (a same-repo, non-Dependabot PR) is the real end-to-end test of the new `CI_KEYSTORE_*` path.
+
 - [x] 🔒 ⭐⭐ - **Remove the embedded Play Store publish step from build-android.yml** (issue #387)
   - **Verified**: 2026-09-09 (PR #392)
   - **What was done**: second sub-issue of the CI pipeline review (#385), directly motivated by a real incident (a diagnostic `workflow_dispatch` run unexpectedly published to the Play Store alpha track). `build-android.yml` now only ever builds; all publishing goes exclusively through `publish-play-store.yml`.
