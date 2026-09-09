@@ -16,6 +16,11 @@ by referencing it (`Closes #<n>`) in the PR that resolves it.
 
 ## ✅ Done
 
+- [x] 🔒 ⭐⭐ - **Remove the embedded Play Store publish step from build-android.yml** (issue #387)
+  - **Verified**: 2026-09-09 (PR #392)
+  - **What was done**: second sub-issue of the CI pipeline review (#385), directly motivated by a real incident (a diagnostic `workflow_dispatch` run unexpectedly published to the Play Store alpha track). `build-android.yml` now only ever builds; all publishing goes exclusively through `publish-play-store.yml`.
+  - **Final validation**: docs/CI-only change; the PR's own `build` check is the real test.
+
 - [x] ⚡ ⭐ - **CI quick wins: pin Java version, skip unused SDK defaults, drop debug residue** (issue #386)
   - **Verified**: 2026-09-09 (PR #391)
   - **What was done**: first sub-issue of the CI pipeline review (#385). Pinned `actions/setup-java` to an exact Zulu patch instead of a floating version, skipped `setup-android`'s unused default package install, removed a stale unconditional debug-dump step.
