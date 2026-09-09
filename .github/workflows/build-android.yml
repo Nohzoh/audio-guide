@@ -5,18 +5,10 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  # #387: no `track` input here anymore — this workflow only ever builds
+  # now, never publishes. Use publish-play-store.yml's own
+  # workflow_dispatch to actually publish a build it produced.
   workflow_dispatch:
-    inputs:
-      track:
-        description: 'Play Store track to publish to (only used when run manually)'
-        required: true
-        default: 'alpha'
-        type: choice
-        options:
-          - internal
-          - alpha
-          - beta
-          - production
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -103,14 +95,27 @@ jobs:
       - name: Free disk space
         run: scripts/ci/free_disk_space.sh
 
+      # #386: pinned to an exact patch rather than the floating '17' this
+      # used to be — a silently-updated JDK patch is exactly the kind of
+      # "changed underneath us without anyone touching this file" risk
+      # this review is trying to reduce. Bump deliberately when there's a
+      # reason to (a real security update, a new Flutter SDK requirement).
       - name: Setup Java
         uses: actions/setup-java@v6
         with:
           distribution: 'zulu'
-          java-version: '17'
+          java-version: '17.0.20'
 
+      # #386: packages: '' skips the action's own default install
+      # (cmdline-tools + platform-tools) beyond bootstrapping sdkmanager
+      # itself — platform-tools (adb/fastboot) is never used in this CI
+      # build (no device/emulator involved), and the exact
+      # platform/build-tools/NDK versions actually needed are installed
+      # explicitly right below anyway.
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
+        with:
+          packages: ''
 
       # T83: NDK is a multi-GB download re-fetched on every run otherwise.
       # Bump the key's version suffix if the pinned NDK version below changes.
@@ -199,18 +204,6 @@ jobs:
           [ ! -f "$FILE" ] && FILE="android/app/build.gradle"
           python3 scripts/patch_signing.py "$FILE"
           echo "Done"
-
-      - name: Debug - show gradle after signing
-        run: |
-          echo "=== build.gradle.kts ==="
-          cat android/app/build.gradle.kts
-          # key.properties holds the real keystore passwords in plaintext â€”
-          # never dump its contents to CI logs, only confirm it exists.
-          if [ -f android/key.properties ]; then
-            echo "=== key.properties: present ==="
-          else
-            echo "=== key.properties: NOT FOUND ==="
-          fi
 
       - name: Get dependencies
         run: flutter pub get 2>&1 | tee /tmp/pub_get.txt && cat /tmp/pub_get.txt | tail -30
@@ -388,20 +381,12 @@ jobs:
           path: build/app/outputs/mapping/release/mapping.txt
           retention-days: 30
 
-      # Deliberately manual-only (workflow_dispatch), not on every push/PR â€”
-      # an automatic upload on every merge would spam closed-testing testers
-      # with a new build for every doc/config change. Track is chosen at
-      # dispatch time (defaults to "alpha", the closed testing track's API
-      # name) so the same workflow covers promoting to beta/production later
-      # without editing this file.
-      - name: Publish to Play Store
-        if: success() && github.event_name == 'workflow_dispatch'
-        uses: r0adkll/upload-google-play@v1
-        with:
-          serviceAccountJsonPlainText: ${{ secrets.PLAY_STORE_SERVICE_ACCOUNT_JSON }}
-          packageName: io.nohzoh.audiolens
-          releaseFiles: build/app/outputs/bundle/release/app-release.aab
-          tracks: ${{ inputs.track }}
-          status: completed
-          mappingFile: build/app/outputs/mapping/release/mapping.txt
-          whatsNewDirectory: distribution/whatsnew
+      # #387: this workflow never publishes — see publish-play-store.yml,
+      # which downloads and republishes the AAB/mapping artifacts this job
+      # just uploaded, instead of rebuilding. Keeping the two apart means
+      # a `workflow_dispatch` run of *this* file (a plain build, a
+      # diagnostic, anything) can never accidentally reach the Play Store
+      # — it structurally has no path to it. Publishing a genuinely fresh
+      # build (no recent artifact on main to reuse) is now two explicit
+      # steps: dispatch this workflow to build, then dispatch
+      # publish-play-store.yml with that run's ID to publish it.
