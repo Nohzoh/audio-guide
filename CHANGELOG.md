@@ -16,6 +16,11 @@ by referencing it (`Closes #<n>`) in the PR that resolves it.
 
 ## ✅ Done
 
+- [x] 🔒 ⭐⭐ - **Fix CodeQL cache-poisoning injection + missing job permissions** (issue #382)
+  - **Verified**: 2026-09-09 (PR #383)
+  - **What was done**: found reviewing the repo's Security tab — 2 CodeQL errors (`actions/cache-poisoning/code-injection` in test.yml/build-android.yml's `changes` job, from interpolating attacker-controlled changed-file names straight into a shell script on a privileged `push`-to-main trigger) and 3 warnings (jobs missing an explicit `permissions:` block). Fixed by passing the value through `env:` and adding `permissions: contents: read` to the three read-only jobs.
+  - **Final validation**: docs/CI-only change, YAML syntax validated; the PR's own CI run is the real test.
+
 - [x] 📚 ⭐⭐ - **Add a French translation of the GitHub Pages site** (issue #378)
   - **Verified**: 2026-09-09 (PR #379)
   - **What was done**: direct ask from the user — the landing page was English-only. Split into `docs/index.html` (English, root) and `docs/fr/index.html` (French), sharing an extracted `docs/assets/style.css`. Redirects a first-time visitor to the French page when the browser's language is French, with a manual toggle that records an explicit choice in `localStorage`.
