@@ -227,9 +227,13 @@ void main() {
                   'parts': [
                     {
                       'text': jsonEncode({
-                        'question': 'En quelle année ?',
-                        'correctAnswer': '1889',
-                        'wrongAnswers': ['1789', '1900', '1850'],
+                        'questions': [
+                          {
+                            'question': 'En quelle année ?',
+                            'correctAnswer': '1889',
+                            'wrongAnswers': ['1789', '1900', '1850'],
+                          },
+                        ],
                       }),
                     },
                   ],
@@ -302,9 +306,13 @@ void main() {
                 'parts': [
                   {
                     'text': jsonEncode({
-                      'question': 'En quelle année ?',
-                      'correctAnswer': '1889',
-                      'wrongAnswers': ['1789', '1900', '1850'],
+                      'questions': [
+                        {
+                          'question': 'En quelle année ?',
+                          'correctAnswer': '1889',
+                          'wrongAnswers': ['1789', '1900', '1850'],
+                        },
+                      ],
                     }),
                   },
                 ],
