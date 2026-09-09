@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
@@ -5,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import '../constants/analysis_provenance.dart';
 import '../models/guide_error.dart';
+import '../models/quiz_question.dart';
 
 /// Thrown when copying a photo or audio file to permanent storage fails
 /// (T116) — most commonly because the device is out of storage. Callers
@@ -289,7 +291,7 @@ class HistoryService extends ChangeNotifier {
     final path = dbPath ?? join(await getDatabasesPath(), 'audio_guide_history.db');
     _db = await openDatabase(
       path,
-      version: 10,
+      version: 11,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE history(
@@ -323,6 +325,7 @@ class HistoryService extends ChangeNotifier {
         ''');
         await db.execute(_createCollectionsTableSql);
         await db.execute(_createHistoryCollectionsTableSql);
+        await db.execute(_createQuizQuestionsTableSql);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
@@ -404,6 +407,11 @@ class HistoryService extends ChangeNotifier {
             where: "ttsModel = 'native-tts' AND audioPath IS NOT NULL",
           );
         }
+        if (oldVersion < 11) {
+          // #373 (follow-up): batch-generated quiz questions cached for
+          // reuse — see takeCachedQuizQuestion/cacheQuizQuestions below.
+          await db.execute(_createQuizQuestionsTableSql);
+        }
       },
     );
     await _loadEntries();
@@ -423,6 +431,23 @@ class HistoryService extends ChangeNotifier {
       historyId INTEGER NOT NULL,
       collectionId INTEGER NOT NULL,
       PRIMARY KEY (historyId, collectionId)
+    )
+  ''';
+
+  // #373 (follow-up): a batch call to GeminiApiService.generateQuizQuestions
+  // can return more than one usable question — only the first is asked
+  // immediately, the rest are stored here so a later quiz round landing on
+  // the same entry can reuse them instead of spending another API call.
+  // Rows are consumed (deleted) as they're taken, so this table only ever
+  // holds not-yet-asked leftovers, never a history of what was asked.
+  static const _createQuizQuestionsTableSql = '''
+    CREATE TABLE quiz_questions(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      historyId INTEGER NOT NULL,
+      question TEXT NOT NULL,
+      correctAnswer TEXT NOT NULL,
+      wrongAnswers TEXT NOT NULL,
+      createdAt TEXT NOT NULL
     )
   ''';
 
@@ -539,6 +564,11 @@ class HistoryService extends ChangeNotifier {
     if (existing.audioPath != null) {
       try { await File(existing.audioPath!).delete(); } catch (_) {}
     }
+    // #373 (follow-up): this entry's script is about to change (first
+    // analysis or a regenerate) — any quiz questions cached against the
+    // old script would be stale, so clear them rather than risk asking
+    // about a fact the new script no longer contains.
+    await _db!.delete('quiz_questions', where: 'historyId = ?', whereArgs: [entryId]);
 
     await _db!.update(
       'history',
@@ -758,9 +788,55 @@ class HistoryService extends ChangeNotifier {
 
     await _db!.delete('history', where: 'id = ?', whereArgs: [id]);
     await _db!.delete('history_collections', where: 'historyId = ?', whereArgs: [id]);
+    await _db!.delete('quiz_questions', where: 'historyId = ?', whereArgs: [id]);
     _entries.removeWhere((e) => e.id == id);
     _entryCollectionIds.remove(id);
     notifyListeners();
+  }
+
+  /// #373 (follow-up): pops one previously-generated, not-yet-asked quiz
+  /// question cached for [historyId] (oldest first), or null if none are
+  /// cached — the caller (QuizScreen) then falls back to a fresh batch
+  /// call. The row is deleted as it's taken, so a cached question is only
+  /// ever asked once.
+  Future<QuizQuestion?> takeCachedQuizQuestion(int historyId) async {
+    final rows = await _db!.query(
+      'quiz_questions',
+      where: 'historyId = ?',
+      whereArgs: [historyId],
+      orderBy: 'id ASC',
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    final row = rows.first;
+    await _db!.delete('quiz_questions', where: 'id = ?', whereArgs: [row['id']]);
+    return QuizQuestion(
+      question: row['question'] as String,
+      correctAnswer: row['correctAnswer'] as String,
+      wrongAnswers:
+          (jsonDecode(row['wrongAnswers'] as String) as List).cast<String>(),
+    );
+  }
+
+  /// #373 (follow-up): stores [questions] — typically a batch call's
+  /// leftovers once one has already been used for the current round — so
+  /// a later quiz round landing on the same entry can reuse them via
+  /// [takeCachedQuizQuestion] instead of spending another API call.
+  /// Invalidated by [completeEntry] (script changed) and [deleteEntry].
+  Future<void> cacheQuizQuestions(int historyId, List<QuizQuestion> questions) async {
+    if (questions.isEmpty) return;
+    final now = DateTime.now().toIso8601String();
+    final batch = _db!.batch();
+    for (final q in questions) {
+      batch.insert('quiz_questions', {
+        'historyId': historyId,
+        'question': q.question,
+        'correctAnswer': q.correctAnswer,
+        'wrongAnswers': jsonEncode(q.wrongAnswers),
+        'createdAt': now,
+      });
+    }
+    await batch.commit(noResult: true);
   }
 
   /// T51: toggles a single entry's favorite flag.

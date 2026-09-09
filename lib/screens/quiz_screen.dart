@@ -80,7 +80,7 @@ class _QuizScreenState extends State<QuizScreen> {
     // async gap risks a since-unmounted/disposed provider.
     final geminiApiService = context.read<AudioGuideService>().geminiApiServiceForQuiz;
     final outputLanguage = context.read<SettingsService>().outputLanguage;
-    // ignore: avoid_print
+    final history = context.read<HistoryService>();
 
     if (_isPlayingAudio) {
       await _audioPlayerChannel.invokeMethod('stop');
@@ -91,9 +91,7 @@ class _QuizScreenState extends State<QuizScreen> {
     final pool = _eligible.length > 1
         ? _eligible.where((e) => e.id != _current?.id).toList()
         : _eligible;
-    // ignore: avoid_print
     final entry = pool[_random.nextInt(pool.length)];
-    // ignore: avoid_print
 
     setState(() {
       _current = entry;
@@ -103,14 +101,26 @@ class _QuizScreenState extends State<QuizScreen> {
       _isPlayingAudio = false;
     });
 
-    QuizQuestion? textQuestion;
-    if (geminiApiService != null) {
+    // #373 (follow-up): try a previously-generated, not-yet-asked question
+    // for this exact entry before spending a fresh API call — a batch call
+    // below generates more than one at a time precisely so this cache has
+    // something to serve on a later round that lands on the same entry.
+    QuizQuestion? textQuestion = await history.takeCachedQuizQuestion(entry.id!);
+    if (!mounted) return;
+
+    if (textQuestion == null && geminiApiService != null) {
       setState(() => _loadingQuestion = true);
-      textQuestion = await geminiApiService.generateQuizQuestion(
+      final batch = await geminiApiService.generateQuizQuestions(
         script: entry.script,
         language: entry.outputLanguage ?? outputLanguage,
       );
       if (!mounted) return;
+      if (batch.isNotEmpty) {
+        textQuestion = batch.first;
+        if (batch.length > 1) {
+          await history.cacheQuizQuestions(entry.id!, batch.sublist(1));
+        }
+      }
     }
 
     late final List<String> options;

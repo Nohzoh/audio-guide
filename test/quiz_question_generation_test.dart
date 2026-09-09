@@ -15,70 +15,86 @@ String _candidateJson(String text) => jsonEncode({
   ],
 });
 
+String _questionsBody(List<Map<String, dynamic>> questions) =>
+    _candidateJson(jsonEncode({'questions': questions}));
+
+Map<String, dynamic> _question({
+  String question = 'En quelle année ce monument a-t-il été construit ?',
+  String correctAnswer = '1889',
+  List<String> wrongAnswers = const ['1789', '1900', '1850'],
+}) =>
+    {
+      'question': question,
+      'correctAnswer': correctAnswer,
+      'wrongAnswers': wrongAnswers,
+    };
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('parses a well-formed quiz question from a valid JSON response',
+  test('parses a batch of well-formed quiz questions from a valid JSON response',
       () async {
     final service = GeminiApiService(
       apiKey: 'test-key',
       dioClient: fakeDio((options) async => (
             statusCode: 200,
-            body: _candidateJson(jsonEncode({
-              'question': 'En quelle année ce monument a-t-il été construit ?',
-              'correctAnswer': '1889',
-              'wrongAnswers': ['1789', '1900', '1850'],
-            })),
+            body: _questionsBody([
+              _question(),
+              _question(question: 'Où se trouve-t-il ?', correctAnswer: 'Paris'),
+            ]),
           )),
     );
 
-    final question = await service.generateQuizQuestion(script: 'La Tour Eiffel...');
+    final questions = await service.generateQuizQuestions(script: 'La Tour Eiffel...');
 
-    expect(question, isNotNull);
-    expect(question!.question, 'En quelle année ce monument a-t-il été construit ?');
-    expect(question.correctAnswer, '1889');
-    expect(question.wrongAnswers, ['1789', '1900', '1850']);
+    expect(questions, hasLength(2));
+    expect(questions[0].question, 'En quelle année ce monument a-t-il été construit ?');
+    expect(questions[0].correctAnswer, '1889');
+    expect(questions[0].wrongAnswers, ['1789', '1900', '1850']);
+    expect(questions[1].question, 'Où se trouve-t-il ?');
+    expect(questions[1].correctAnswer, 'Paris');
   });
 
-  test('returns null instead of throwing on a non-200 response', () async {
+  test('returns an empty list instead of throwing on a non-200 response', () async {
     final service = GeminiApiService(
       apiKey: 'test-key',
       dioClient: fakeDio((options) async => (statusCode: 429, body: 'rate limited')),
     );
 
-    final question = await service.generateQuizQuestion(script: 'La Tour Eiffel...');
+    final questions = await service.generateQuizQuestions(script: 'La Tour Eiffel...');
 
-    expect(question, isNull);
+    expect(questions, isEmpty);
   });
 
-  test('returns null instead of throwing on malformed JSON', () async {
+  test('returns an empty list instead of throwing on malformed JSON', () async {
     final service = GeminiApiService(
       apiKey: 'test-key',
       dioClient: fakeDio((options) async =>
           (statusCode: 200, body: _candidateJson('this is not json at all'))),
     );
 
-    final question = await service.generateQuizQuestion(script: 'La Tour Eiffel...');
+    final questions = await service.generateQuizQuestions(script: 'La Tour Eiffel...');
 
-    expect(question, isNull);
+    expect(questions, isEmpty);
   });
 
-  test('returns null when fewer than 3 wrong answers are provided', () async {
+  test('drops individual questions with fewer than 3 wrong answers but keeps '
+      'the rest of the batch', () async {
     final service = GeminiApiService(
       apiKey: 'test-key',
       dioClient: fakeDio((options) async => (
             statusCode: 200,
-            body: _candidateJson(jsonEncode({
-              'question': 'Quand ?',
-              'correctAnswer': '1889',
-              'wrongAnswers': ['1789'],
-            })),
+            body: _questionsBody([
+              _question(question: 'Quand ?', wrongAnswers: ['1789']),
+              _question(question: 'Où ?', correctAnswer: 'Paris'),
+            ]),
           )),
     );
 
-    final question = await service.generateQuizQuestion(script: 'La Tour Eiffel...');
+    final questions = await service.generateQuizQuestions(script: 'La Tour Eiffel...');
 
-    expect(question, isNull);
+    expect(questions, hasLength(1));
+    expect(questions.single.question, 'Où ?');
   });
 
   test('deduplicates repeated wrong answers before checking the minimum of 3',
@@ -87,27 +103,40 @@ void main() {
       apiKey: 'test-key',
       dioClient: fakeDio((options) async => (
             statusCode: 200,
-            body: _candidateJson(jsonEncode({
-              'question': 'Quand ?',
-              'correctAnswer': '1889',
-              'wrongAnswers': ['1789', '1789', '1900'],
-            })),
+            body: _questionsBody([
+              _question(question: 'Quand ?', wrongAnswers: ['1789', '1789', '1900']),
+            ]),
           )),
     );
 
-    final question = await service.generateQuizQuestion(script: 'La Tour Eiffel...');
+    final questions = await service.generateQuizQuestions(script: 'La Tour Eiffel...');
 
-    expect(question, isNull);
+    expect(questions, isEmpty);
   });
 
-  test('returns null on a network error', () async {
+  test('returns an empty list when the response has no "questions" array',
+      () async {
+    final service = GeminiApiService(
+      apiKey: 'test-key',
+      dioClient: fakeDio((options) async => (
+            statusCode: 200,
+            body: _candidateJson(jsonEncode(_question())),
+          )),
+    );
+
+    final questions = await service.generateQuizQuestions(script: 'La Tour Eiffel...');
+
+    expect(questions, isEmpty);
+  });
+
+  test('returns an empty list on a network error', () async {
     final service = GeminiApiService(
       apiKey: 'test-key',
       dioClient: fakeDio((options) async => throw Exception('network down')),
     );
 
-    final question = await service.generateQuizQuestion(script: 'La Tour Eiffel...');
+    final questions = await service.generateQuizQuestions(script: 'La Tour Eiffel...');
 
-    expect(question, isNull);
+    expect(questions, isEmpty);
   });
 }

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:audiolens/constants/analysis_provenance.dart';
+import 'package:audiolens/models/quiz_question.dart';
 import 'package:audiolens/services/history_service.dart';
 
 /// T68 — HistoryService's actual CRUD methods (as opposed to just
@@ -320,6 +321,74 @@ void main() {
     await service.deleteEntry(pending.id!);
 
     expect(File(audioPath).existsSync(), isFalse);
+  });
+
+  // #373 (follow-up): cached quiz questions let a later quiz round on the
+  // same entry reuse a batch call's leftovers instead of spending another
+  // API call.
+  group('quiz question cache', () {
+    QuizQuestion quizQ(String question) => QuizQuestion(
+          question: question,
+          correctAnswer: 'A',
+          wrongAnswers: const ['B', 'C', 'D'],
+        );
+
+    test('takeCachedQuizQuestion returns null when nothing is cached',
+        () async {
+      final service = HistoryService();
+      await service.init(dbPath: dbPath);
+      final entry = await service.addPendingEntry(imagePath: sourceImagePath);
+      await service.completeEntry(entryId: entry.id!, title: 't', script: 's');
+
+      expect(await service.takeCachedQuizQuestion(entry.id!), isNull);
+    });
+
+    test('caches a batch, then takes questions oldest-first until empty',
+        () async {
+      final service = HistoryService();
+      await service.init(dbPath: dbPath);
+      final entry = await service.addPendingEntry(imagePath: sourceImagePath);
+      await service.completeEntry(entryId: entry.id!, title: 't', script: 's');
+
+      await service.cacheQuizQuestions(entry.id!, [quizQ('Q1'), quizQ('Q2')]);
+
+      final first = await service.takeCachedQuizQuestion(entry.id!);
+      expect(first?.question, 'Q1');
+      final second = await service.takeCachedQuizQuestion(entry.id!);
+      expect(second?.question, 'Q2');
+      // Consumed — nothing left for a third round.
+      expect(await service.takeCachedQuizQuestion(entry.id!), isNull);
+    });
+
+    test('completeEntry (a regenerate) invalidates previously cached '
+        'questions for that entry', () async {
+      final service = HistoryService();
+      await service.init(dbPath: dbPath);
+      final entry = await service.addPendingEntry(imagePath: sourceImagePath);
+      await service.completeEntry(entryId: entry.id!, title: 't', script: 's');
+      await service.cacheQuizQuestions(entry.id!, [quizQ('Stale, about the old script')]);
+
+      // Regenerate — same entryId, new script.
+      await service.completeEntry(entryId: entry.id!, title: 't2', script: 's2');
+
+      expect(await service.takeCachedQuizQuestion(entry.id!), isNull);
+    });
+
+    test('deleteEntry removes any cached questions for that entry', () async {
+      final service = HistoryService();
+      await service.init(dbPath: dbPath);
+      final entry = await service.addPendingEntry(imagePath: sourceImagePath);
+      await service.completeEntry(entryId: entry.id!, title: 't', script: 's');
+      await service.cacheQuizQuestions(entry.id!, [quizQ('Q1')]);
+
+      await service.deleteEntry(entry.id!);
+
+      // A fresh instance so a leftover in-memory list can't mask an
+      // orphaned row still sitting in the db.
+      final reloaded = HistoryService();
+      await reloaded.init(dbPath: dbPath);
+      expect(await reloaded.takeCachedQuizQuestion(entry.id!), isNull);
+    });
   });
 
   test('addPendingEntry never collides two entries created in the same '

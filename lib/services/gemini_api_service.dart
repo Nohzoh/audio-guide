@@ -241,34 +241,46 @@ class GeminiApiService implements AIService {
     }
   }
 
-  /// #343: generates a text-comprehension quiz question from [script] — an
-  /// already-existing history entry's cached AI-written text, no new photo
-  /// analysis involved. Silent-failure by design: returns null on any
-  /// error (network, rate limit, malformed/incomplete JSON) rather than
+  /// #343, batched per #373 follow-up: generates up to [count]
+  /// text-comprehension quiz questions from [script] in a single call —
+  /// an already-existing history entry's cached AI-written text, no new
+  /// photo analysis involved. Batched (rather than one question per call)
+  /// so the caller can ask one immediately and cache the rest
+  /// (HistoryService.cacheQuizQuestions) for a later round on the same
+  /// entry to reuse without spending another API call.
+  ///
+  /// Silent-failure by design: returns an empty list on any error
+  /// (network, rate limit, malformed/incomplete JSON) rather than
   /// throwing — the quiz screen falls back to its zero-cost "guess the
-  /// place" question type when this returns null, so a single missing
-  /// quiz question isn't worth retrying across models or surfacing an
-  /// error for, unlike a real analysis.
-  Future<QuizQuestion?> generateQuizQuestion({
+  /// place" question type when this returns empty, so missing quiz
+  /// questions aren't worth retrying across models or surfacing an error
+  /// for, unlike a real analysis. A partially-usable response (some
+  /// questions well-formed, some not) still returns the usable subset
+  /// rather than discarding everything.
+  Future<List<QuizQuestion>> generateQuizQuestions({
     required String script,
     String? language,
+    int count = 3,
   }) async {
     final cfg = RemoteConfigService.current;
     final languagePart = language != null && language.isNotEmpty
-        ? 'Pose la question et les reponses exclusivement en $language. '
+        ? 'Pose les questions et les reponses exclusivement en $language. '
         : '';
     final prompt = 'Voici le texte d\'un guide audio touristique :\n\n$script\n\n'
-        'A partir de ce texte, redige en JSON valide uniquement, sans markdown : '
-        '{"question": "une question factuelle courte sur une information precise '
-        'mentionnee dans ce texte", "correctAnswer": "la bonne reponse, courte '
-        '(quelques mots)", "wrongAnswers": ["reponse plausible mais fausse 1", '
-        '"reponse plausible mais fausse 2", "reponse plausible mais fausse 3"]} '
+        'A partir de ce texte, redige en JSON valide uniquement, sans markdown, '
+        '$count questions distinctes : '
+        '{"questions": [{"question": "une question factuelle courte sur une '
+        'information precise mentionnee dans ce texte", "correctAnswer": "la '
+        'bonne reponse, courte (quelques mots)", "wrongAnswers": ["reponse '
+        'plausible mais fausse 1", "reponse plausible mais fausse 2", "reponse '
+        'plausible mais fausse 3"]}, ...]} '
         '$languagePart'
-        'La question doit porter sur un fait precis et verifiable du texte (date, '
-        'nom, materiau, anecdote...), jamais une question generale ou d\'opinion. '
-        'Les mauvaises reponses doivent etre plausibles et du meme type que la '
-        'bonne (une date proche pour une question de date, etc.), jamais absurdes. '
-        'Ecris uniquement le JSON final, rien d\'autre.';
+        'Chaque question doit porter sur un fait precis et verifiable du texte '
+        '(date, nom, materiau, anecdote...), jamais une question generale ou '
+        'd\'opinion, et chaque question doit porter sur un fait different des '
+        'autres. Les mauvaises reponses doivent etre plausibles et du meme type '
+        'que la bonne (une date proche pour une question de date, etc.), jamais '
+        'absurdes. Ecris uniquement le JSON final, rien d\'autre.';
 
     try {
       final resp = await _post(
@@ -288,39 +300,44 @@ class GeminiApiService implements AIService {
           },
         }),
       );
-      if (resp.statusCode != 200) return null;
+      if (resp.statusCode != 200) return const [];
 
       final text = _extractCandidateText(resp.body);
-      if (text == null || text.isEmpty) return null;
+      if (text == null || text.isEmpty) return const [];
 
       final jsonBlob = _extractJsonObject(text);
-      if (jsonBlob == null) return null;
+      if (jsonBlob == null) return const [];
       final parsed = jsonDecode(jsonBlob);
-      if (parsed is! Map<String, dynamic>) return null;
+      if (parsed is! Map<String, dynamic>) return const [];
+      final rawQuestions = parsed['questions'];
+      if (rawQuestions is! List) return const [];
 
-      final question = (parsed['question'] as String? ?? '').trim();
-      final correctAnswer = (parsed['correctAnswer'] as String? ?? '').trim();
-      final wrongAnswersRaw = parsed['wrongAnswers'];
-      final wrongAnswers = wrongAnswersRaw is List
-          ? wrongAnswersRaw
-              .whereType<String>()
-              .map((s) => s.trim())
-              .where((s) => s.isNotEmpty)
-              .toSet() // guards against the model repeating an answer
-              .toList()
-          : <String>[];
-
-      if (question.isEmpty || correctAnswer.isEmpty || wrongAnswers.length < 3) {
-        return null;
+      final questions = <QuizQuestion>[];
+      for (final item in rawQuestions) {
+        if (item is! Map<String, dynamic>) continue;
+        final question = (item['question'] as String? ?? '').trim();
+        final correctAnswer = (item['correctAnswer'] as String? ?? '').trim();
+        final wrongAnswersRaw = item['wrongAnswers'];
+        final wrongAnswers = wrongAnswersRaw is List
+            ? wrongAnswersRaw
+                .whereType<String>()
+                .map((s) => s.trim())
+                .where((s) => s.isNotEmpty)
+                .toSet() // guards against the model repeating an answer
+                .toList()
+            : <String>[];
+        if (question.isEmpty || correctAnswer.isEmpty || wrongAnswers.length < 3) {
+          continue;
+        }
+        questions.add(QuizQuestion(
+          question: question,
+          correctAnswer: correctAnswer,
+          wrongAnswers: wrongAnswers.take(3).toList(),
+        ));
       }
-
-      return QuizQuestion(
-        question: question,
-        correctAnswer: correctAnswer,
-        wrongAnswers: wrongAnswers.take(3).toList(),
-      );
+      return questions;
     } catch (_) {
-      return null;
+      return const [];
     }
   }
 

@@ -156,7 +156,7 @@ void main() {
   });
 
   for (final oldVersion in [1, 2, 3, 4, 5, 6]) {
-    test('migrates cleanly from schema v$oldVersion to v10, keeping data (T09)', () async {
+    test('migrates cleanly from schema v$oldVersion to v11, keeping data (T09)', () async {
       final path = await _createOldSchemaDb(tempDir, oldVersion);
 
       final service = HistoryService();
@@ -185,11 +185,11 @@ void main() {
         await db.close();
         return v;
       });
-      expect(version, 10);
+      expect(version, 11);
     });
   }
 
-  test('a fresh install (no prior db) creates schema v10 directly', () async {
+  test('a fresh install (no prior db) creates schema v11 directly', () async {
     final path = join(tempDir.path, 'fresh.db');
     final service = HistoryService();
     await service.init(dbPath: path);
@@ -201,7 +201,7 @@ void main() {
       await db.close();
       return v;
     });
-    expect(version, 10);
+    expect(version, 11);
   });
 
   // #288
