@@ -16,6 +16,11 @@ by referencing it (`Closes #<n>`) in the PR that resolves it.
 
 ## ✅ Done
 
+- [x] ⚡ ⭐⭐ - **Only build+sign the AAB on an actual release push** (issue #389)
+  - **Verified**: 2026-09-10 (PR #395)
+  - **What was done**: fourth sub-issue of the CI pipeline review (#385), directly implementing the user's own observation that a routine merge to `main` never needs a signed AAB — only a real release (a `chore/publish-v*` version bump) does. `changes.yml` now also outputs `release`, true only when a push's `pubspec.yaml` `version:` line actually changed; `build-android.yml`'s `build` job skips entirely on any other push to `main` (unaffected on `pull_request`/`workflow_dispatch`).
+  - **Final validation**: docs/CI-only change; this PR's own `pull_request` checks exercise the unaffected `code`-only path — the push-specific skip/run behavior is confirmed on the next real pushes to `main` post-merge.
+
 - [x] 🔧 ⭐⭐ - **Consolidate the duplicated CI changes job into one reusable workflow** (issue #388)
   - **Verified**: 2026-09-09 (PR #393)
   - **What was done**: third sub-issue of the CI pipeline review (#385). `test.yml` and `build-android.yml` each carried an independently-maintained copy of the docs-only-change path-filtering job — already caused real drift (#317's stale merge-ref missed the #382 fix). Extracted to `.github/workflows/changes.yml`, called via `workflow_call` from both. Along the way: GitHub requires the *caller* job to explicitly re-grant at least the permissions the reusable workflow's own job requests, or the whole workflow file is rejected outright at startup (a hard-won lesson, documented in the workflow itself).
