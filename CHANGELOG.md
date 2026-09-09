@@ -16,6 +16,11 @@ by referencing it (`Closes #<n>`) in the PR that resolves it.
 
 ## ✅ Done
 
+- [x] ⚡ ⭐⭐ - **Batch-generate and persist quiz questions to cut Gemini API calls** (issue #375)
+  - **Verified**: 2026-09-09 (PR #376)
+  - **What was done**: direct suggestion from the user — the quiz spent one Gemini API call per round even on a repeat visit to the same entry. Now requests a batch (3) per call and persists the leftovers in a new `quiz_questions` table (schema v11), reused on a later round instead of another API call. Invalidated on regenerate/delete.
+  - **Final validation**: `flutter analyze` → 0 issues; `flutter test` → 460/460 (1 pre-existing, unrelated flaky test)
+
 - [x] 🐛 ⭐ - **Hide the quiz's guess-the-place text while a Gemini question loads** (issue #373)
   - **Verified**: 2026-09-09 (PR #374)
   - **What was done**: reported live by the user — the guess-the-place placeholder question showed immediately while a Gemini text-comprehension question was still generating, misleading since it wasn't necessarily the question that ends up being asked. Now hidden during the loading window.
