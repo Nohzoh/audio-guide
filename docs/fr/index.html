@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<script>
+  // Only ever honors an explicit "back to English" choice made via the
+  // language-switch links (see index.html's own script for the initial
+  // browser-language redirect into this page).
+  (function () {
+    if (localStorage.getItem('audiolens-lang') === 'en') {
+      location.replace('../');
+    }
+  })();
+</script>
+<title>AudioLens — Guide audio IA pour n'importe quel lieu</title>
+<meta name="description" content="Prenez en photo un lieu et obtenez instantanément un guide audio raconté par une IA. Open source, Android, dans le cloud ou entièrement sur l'appareil.">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="../assets/icon.png">
+<link rel="alternate" hreflang="en" href="https://nohzoh.github.io/AudioLens/">
+<link rel="alternate" hreflang="fr" href="https://nohzoh.github.io/AudioLens/fr/">
+<link rel="alternate" hreflang="x-default" href="https://nohzoh.github.io/AudioLens/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="#top">
+      <img src="../assets/icon.png" alt="">
+      AudioLens
+    </a>
+    <nav class="site-links">
+      <a href="#features">Fonctionnalités</a>
+      <a href="#screenshots">Captures d'écran</a>
+      <a href="#how-it-works">Fonctionnement</a>
+      <a href="#developers">Développeurs</a>
+    </nav>
+    <div class="header-ctas">
+      <a class="lang-switch" href="../" onclick="localStorage.setItem('audiolens-lang','en')" hreflang="en">🇬🇧 English</a>
+      <a class="btn-kofi" href="https://ko-fi.com/tarnaud" target="_blank" rel="noopener">
+        ☕ Soutenir
+      </a>
+      <a class="btn-github" href="https://github.com/Nohzoh/AudioLens">
+        ★ GitHub
+      </a>
+    </div>
+  </div>
+</header>
+
+<div id="top"></div>
+<section class="hero">
+  <div class="wrap">
+    <div class="hero-copy">
+      <span class="eyebrow">🎧 Open source · Android</span>
+      <h1>Visez avec votre appareil. <span class="grad">Écoutez l'histoire.</span></h1>
+      <p class="lede">
+        AudioLens transforme la photo d'un lieu — un monument, la façade
+        d'un musée, une crête de montagne — en un guide parlé instantané.
+        Sur l'appareil ou dans le cloud, à vous de choisir.
+      </p>
+      <div class="cta-row">
+        <a class="btn-primary" href="https://github.com/Nohzoh/AudioLens">Voir sur GitHub →</a>
+        <a class="btn-secondary" href="#screenshots">Voir en action</a>
+      </div>
+    </div>
+    <div class="hero-shot">
+      <div class="phone">
+        <img src="../assets/screenshot-player.png" alt="AudioLens racontant un lieu, affiché par-dessus la photo capturée">
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap">
+  <div class="status">
+    <span class="dot"></span>
+    <div>
+      <p>
+        <strong>AudioLens est en test ouvert sur le Google Play Store</strong>
+        — tout le monde peut rejoindre, sans invitation. Trois étapes pour l'installer :
+      </p>
+      <ol class="status-steps">
+        <li>
+          <span class="n">1</span>
+          <a href="https://groups.google.com/g/audiolens" target="_blank" rel="noopener">Rejoindre le groupe de testeurs</a>
+          <span class="d">— requis une fois, avant que le Play Store autorise l'inscription</span>
+        </li>
+        <li>
+          <span class="n">2</span>
+          <a href="https://play.google.com/apps/testing/io.nohzoh.audiolens" target="_blank" rel="noopener">S'inscrire au test</a>
+          <span class="d">— sur la page de test du Play Store</span>
+        </li>
+        <li>
+          <span class="n">3</span>
+          <a href="https://play.google.com/store/apps/details?id=io.nohzoh.audiolens" target="_blank" rel="noopener">Installer depuis Google Play</a>
+          <span class="d">— même page d'annonce ensuite</span>
+        </li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<section id="features">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">Pourquoi AudioLens</span>
+      <h2>Pensé pour visiter, pour de vrai</h2>
+      <p>Pas besoin de parcourir un app store ni de taper une recherche en
+      étant devant quelque chose d'intéressant — juste viser, prendre la
+      photo, et écouter.</p>
+    </div>
+    <div class="features">
+      <div class="feature">
+        <div class="icon">📸</div>
+        <h3>Une photo, une narration</h3>
+        <p>Prenez une photo (ou choisissez-en une dans votre galerie) et AudioLens identifie le lieu puis rédige un script sur-le-champ.</p>
+      </div>
+      <div class="feature">
+        <div class="icon">🗺️</div>
+        <h3>Géolocalisation intelligente</h3>
+        <p>Lit d'abord le GPS dans les données EXIF de la photo, puis se rabat sur la position en temps réel — et permet de pointer l'emplacement sur une carte si aucune des deux n'est disponible.</p>
+      </div>
+      <div class="feature">
+        <div class="icon">📖</div>
+        <h3>Enrichi par Wikipédia</h3>
+        <p>Les points d'intérêt à proximité et le contexte Wikipédia sont intégrés au script pour de vrais détails historiques et culturels.</p>
+      </div>
+      <div class="feature">
+        <div class="icon">📱</div>
+        <h3>Fonctionne entièrement hors ligne</h3>
+        <p>Gemini Nano exécute tout le pipeline sur l'appareil — aucune connexion internet ni compte requis, avec un script local plus court.</p>
+      </div>
+      <div class="feature">
+        <div class="icon">🔊</div>
+        <h3>Narration naturelle</h3>
+        <p>Gemini TTS dans le cloud, TTS natif Android en repli automatique hors ligne — voix féminine ou masculine, vitesse réglable.</p>
+      </div>
+      <div class="feature">
+        <div class="icon">📜</div>
+        <h3>Historique complet des visites</h3>
+        <p>Chaque lieu capturé reste consultable et réécoutable, avec le modèle, la source GPS et la durée pour chacun.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="screenshots" class="tight">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">Un aperçu</span>
+      <h2>Captures d'écran</h2>
+      <p>Contenu d'exemple ci-dessous pour illustrer l'interface — pas des captures réelles.</p>
+    </div>
+    <div class="showcase">
+      <figure>
+        <div class="frame"><img src="../assets/screenshot-home.png" alt="Écran d'accueil d'AudioLens avec les lieux récemment visités"></div>
+        <figcaption>Accueil — les visites récentes en un coup d'œil</figcaption>
+      </figure>
+      <figure>
+        <div class="frame"><img src="../assets/screenshot-player.png" alt="Écran de narration d'AudioLens pour un lieu"></div>
+        <figcaption>Narration, superposée à votre photo</figcaption>
+      </figure>
+      <figure>
+        <div class="frame"><img src="../assets/screenshot-history.png" alt="Liste de l'historique des visites passées dans AudioLens"></div>
+        <figcaption>Historique — chaque lieu capturé</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section id="how-it-works">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">Sous le capot</span>
+      <h2>Fonctionnement</h2>
+      <p>Un seul pipeline, de la photo au guide parlé — voir <a href="https://github.com/Nohzoh/AudioLens/blob/main/ARCHITECTURE.md">ARCHITECTURE.md</a> pour le détail complet.</p>
+    </div>
+    <div class="pipeline">
+      <div class="pipe-step"><span class="n">1</span>Photo</div>
+      <span class="pipe-arrow">→</span>
+      <div class="pipe-step"><span class="n">2</span>GPS EXIF / temps réel</div>
+      <span class="pipe-arrow">→</span>
+      <div class="pipe-step"><span class="n">3</span>Wikipédia</div>
+      <span class="pipe-arrow">→</span>
+      <div class="pipe-step"><span class="n">4</span>Vision IA + script</div>
+      <span class="pipe-arrow">→</span>
+      <div class="pipe-step"><span class="n">5</span>Synthèse vocale</div>
+      <span class="pipe-arrow">→</span>
+      <div class="pipe-step"><span class="n">6</span>Audio</div>
+    </div>
+
+    <div style="height:28px"></div>
+
+    <div class="modes">
+      <div class="mode-card">
+        <span class="tag">Cloud</span>
+        <h3>☁️ Gemini API</h3>
+        <p>Votre propre compte Google — la meilleure qualité, reconnaît des œuvres et monuments précis, scripts d'environ 400 mots.</p>
+      </div>
+      <div class="mode-card">
+        <span class="tag">Sur l'appareil</span>
+        <h3>📱 Gemini Nano</h3>
+        <p>Fonctionne localement sur les téléphones Android compatibles — sans connexion internet, scripts d'environ 180 mots.</p>
+      </div>
+      <div class="mode-card">
+        <span class="tag">Hybride</span>
+        <h3>⚡ Repli automatique</h3>
+        <p>Le cloud quand disponible, le local automatiquement sinon — aucune bascule manuelle nécessaire en déplacement.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="developers" class="dev-section">
+  <div class="wrap">
+    <div class="dev-grid">
+      <div>
+        <span class="eyebrow">Pour les développeurs</span>
+        <h2>Forkez-le, lancez-le, contribuez</h2>
+        <p style="color:var(--text-dim); font-size:1.02rem; max-width:44ch;">
+          AudioLens est une application Flutter (Android aujourd'hui) avec
+          une architecture documentée et un processus de contribution
+          ouvert — Conventional Commits, revue par PR, CI à chaque push.
+        </p>
+      </div>
+      <div class="dev-links">
+        <a class="dev-link" href="https://github.com/Nohzoh/AudioLens#readme">
+          <div><div class="t">README</div><div class="d">Installation, fonctionnalités, instructions de build</div></div>
+          <span class="arrow">→</span>
+        </a>
+        <a class="dev-link" href="https://github.com/Nohzoh/AudioLens/blob/main/ARCHITECTURE.md">
+          <div><div class="t">ARCHITECTURE.md</div><div class="d">Conception du pipeline et schémas</div></div>
+          <span class="arrow">→</span>
+        </a>
+        <a class="dev-link" href="https://github.com/Nohzoh/AudioLens/blob/main/CONTRIBUTING.md">
+          <div><div class="t">CONTRIBUTING.md</div><div class="d">Processus, conventions, comment soumettre une PR</div></div>
+          <span class="arrow">→</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>Licence AGPL-3.0 · © Contributeurs AudioLens</span>
+    <nav>
+      <a href="https://github.com/Nohzoh/AudioLens/blob/main/PRIVACY.md">Confidentialité</a>
+      <a href="https://github.com/Nohzoh/AudioLens">GitHub</a>
+      <a href="https://ko-fi.com/tarnaud" target="_blank" rel="noopener">☕ Soutenir</a>
+      <a href="../" onclick="localStorage.setItem('audiolens-lang','en')" hreflang="en">🇬🇧 English</a>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>
