@@ -16,6 +16,11 @@ by referencing it (`Closes #<n>`) in the PR that resolves it.
 
 ## ✅ Done
 
+- [x] 🐛 ⭐ - **Hide the quiz's guess-the-place text while a Gemini question loads** (issue #373)
+  - **Verified**: 2026-09-09 (PR #374)
+  - **What was done**: reported live by the user — the guess-the-place placeholder question showed immediately while a Gemini text-comprehension question was still generating, misleading since it wasn't necessarily the question that ends up being asked. Now hidden during the loading window.
+  - **Final validation**: `flutter analyze` → 0 issues; `flutter test` → 456/456
+
 - [x] 🔧 ⭐⭐ - **Move settings' remote-config dump and dev tools to a new Advanced screen** (issue #366)
   - **Verified**: 2026-09-08 (PR #371)
   - **What was done**: found during a full emulator tour — the raw remote-config dump and "View logs"/"View source code" buttons sat unconditionally in the main Settings scroll between ordinary user toggles. Moved into a new `AdvancedSettingsScreen`, reached via a single entry-point button, mirroring `about_analysis_screen.dart`'s existing pattern for technical detail.
