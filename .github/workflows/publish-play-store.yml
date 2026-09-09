@@ -78,7 +78,7 @@ jobs:
           ref: ${{ steps.resolve.outputs.sha }}
 
       - name: Download AAB
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: AudioLens-release-*-aab
           run-id: ${{ steps.resolve.outputs.run_id }}
@@ -87,7 +87,7 @@ jobs:
           merge-multiple: true
 
       - name: Download R8 mapping file
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: AudioLens-release-*-mapping
           run-id: ${{ steps.resolve.outputs.run_id }}
