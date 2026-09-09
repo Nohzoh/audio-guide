@@ -23,8 +23,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # #388: shared with test.yml — see changes.yml.
+  # #388: shared with test.yml — see changes.yml. The caller must
+  # explicitly grant at least what the reusable workflow's own job
+  # requests (pull-requests: read) — GitHub validates this at the
+  # workflow-file level and refuses to even schedule a run otherwise
+  # (learned the hard way: a bare `uses:` here with no permissions block
+  # produced a hard "not valid" startup_failure, not a runtime error).
   changes:
+    permissions:
+      pull-requests: read
     uses: ./.github/workflows/changes.yml
 
   build:
