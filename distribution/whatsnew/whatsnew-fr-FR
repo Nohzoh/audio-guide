@@ -1,2 +1,2 @@
-Améliorations : les Réglages sont allégés — infos techniques/debug (config, logs, code source) déplacées dans un nouvel écran "Avancé".
-Corrections : le titre du sélecteur de carte ne se coupe plus ; certains messages d'erreur ne mélangent plus les langues.
+Corrections : le quiz n'affiche plus de question provisoire pendant qu'une question générée est en cours de chargement.
+Améliorations : le quiz réutilise des questions déjà générées lors d'une visite répétée, ce qui le rend un peu plus rapide.
