@@ -103,14 +103,27 @@ jobs:
       - name: Free disk space
         run: scripts/ci/free_disk_space.sh
 
+      # #386: pinned to an exact patch rather than the floating '17' this
+      # used to be — a silently-updated JDK patch is exactly the kind of
+      # "changed underneath us without anyone touching this file" risk
+      # this review is trying to reduce. Bump deliberately when there's a
+      # reason to (a real security update, a new Flutter SDK requirement).
       - name: Setup Java
         uses: actions/setup-java@v6
         with:
           distribution: 'zulu'
-          java-version: '17'
+          java-version: '17.0.20'
 
+      # #386: packages: '' skips the action's own default install
+      # (cmdline-tools + platform-tools) beyond bootstrapping sdkmanager
+      # itself — platform-tools (adb/fastboot) is never used in this CI
+      # build (no device/emulator involved), and the exact
+      # platform/build-tools/NDK versions actually needed are installed
+      # explicitly right below anyway.
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
+        with:
+          packages: ''
 
       # T83: NDK is a multi-GB download re-fetched on every run otherwise.
       # Bump the key's version suffix if the pinned NDK version below changes.
@@ -191,18 +204,6 @@ jobs:
           [ ! -f "$FILE" ] && FILE="android/app/build.gradle"
           python3 scripts/patch_signing.py "$FILE"
           echo "Done"
-
-      - name: Debug - show gradle after signing
-        run: |
-          echo "=== build.gradle.kts ==="
-          cat android/app/build.gradle.kts
-          # key.properties holds the real keystore passwords in plaintext â€”
-          # never dump its contents to CI logs, only confirm it exists.
-          if [ -f android/key.properties ]; then
-            echo "=== key.properties: present ==="
-          else
-            echo "=== key.properties: NOT FOUND ==="
-          fi
 
       - name: Get dependencies
         run: flutter pub get 2>&1 | tee /tmp/pub_get.txt && cat /tmp/pub_get.txt | tail -30
