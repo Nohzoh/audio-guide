@@ -52,6 +52,15 @@ jobs:
 
       - name: Decide
         id: decide
+        env:
+          # #382: passed via env rather than interpolated straight into the
+          # script below — a changed file's name is attacker-controlled
+          # (anyone opening a PR picks their own file names), and this job
+          # runs on `push` to main, a privileged trigger with write access
+          # to the default-branch cache scope. Interpolating it directly
+          # (as this used to) let a crafted file name inject arbitrary
+          # shell syntax (CodeQL actions/cache-poisoning/code-injection).
+          ALL_FILES: ${{ steps.filter.outputs.all_files }}
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "code=true" >> "$GITHUB_OUTPUT"
@@ -70,7 +79,7 @@ jobs:
           # android/** at once) either. Fetching the full changed-file
           # list and filtering it explicitly here avoids both pitfalls.
           CODE=false
-          echo '${{ steps.filter.outputs.all_files }}' | jq -r '.[]' > /tmp/changed_files.txt
+          echo "$ALL_FILES" | jq -r '.[]' > /tmp/changed_files.txt
           while IFS= read -r f; do
             case "$f" in
               *.md|benchmark/*|docs/*|.github/workflows/benchmark.yml) ;;
@@ -84,6 +93,8 @@ jobs:
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout code
@@ -93,7 +104,7 @@ jobs:
         run: scripts/ci/free_disk_space.sh
 
       - name: Setup Java
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: 'zulu'
           java-version: '17'
