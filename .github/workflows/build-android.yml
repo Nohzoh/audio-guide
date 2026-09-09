@@ -28,7 +28,14 @@ jobs:
 
   build:
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    # #389: on a push to main, the signed AAB is only ever consumed by a
+    # real release (a chore/publish-v* version-bump merge) — every other
+    # push to main skips the whole job (SDK setup, patches, keystore,
+    # build) via the same "job runs and reports skipped satisfies a
+    # required check" mechanism the `code` gate already relies on.
+    # pull_request/workflow_dispatch entry is unaffected — `release` is
+    # only meaningful for `push` (see changes.yml).
+    if: needs.changes.outputs.code == 'true' && (github.event_name != 'push' || needs.changes.outputs.release == 'true')
     runs-on: ubuntu-latest
     permissions:
       contents: read
