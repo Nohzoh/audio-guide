@@ -12,6 +12,14 @@ on:
       code:
         description: "true if this push/PR touches anything besides docs/benchmark-only files"
         value: ${{ jobs.changes.outputs.code }}
+      release:
+        description: >-
+          #389: true if this push's commit actually bumped pubspec.yaml's
+          version line (a real release, per the ship skill's
+          chore/publish-v* PRs) — always true for workflow_dispatch,
+          meaningless for pull_request (build-android.yml never builds
+          the AAB there regardless of this value).
+        value: ${{ jobs.changes.outputs.release }}
 
 jobs:
   # Decides whether the caller's real job is needed. Deliberately does
@@ -27,10 +35,17 @@ jobs:
       pull-requests: read
     outputs:
       code: ${{ steps.decide.outputs.code }}
+      release: ${{ steps.decide.outputs.release }}
     steps:
       - name: Checkout code
         if: github.event_name != 'workflow_dispatch'
         uses: actions/checkout@v7
+        with:
+          # #389: needs HEAD^1 (the pre-merge state of the target branch)
+          # to diff pubspec.yaml's version line against, to tell a real
+          # release push apart from any other push to main. Depth 1
+          # (the default) only has HEAD itself.
+          fetch-depth: 2
 
       - name: List changed files
         if: github.event_name != 'workflow_dispatch'
@@ -56,6 +71,7 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "code=true" >> "$GITHUB_OUTPUT"
+            echo "release=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           # Plain bash rather than relying on dorny/paths-filter's own
@@ -80,3 +96,19 @@ jobs:
           done < /tmp/changed_files.txt
           [ -f /tmp/code_flag ] && CODE=true
           echo "code=$CODE" >> "$GITHUB_OUTPUT"
+
+          # #389: a "release" push is specifically one where pubspec.yaml's
+          # version: line changed — the AAB is only ever consumed by the
+          # publish workflow after a chore/publish-v* version-bump merge,
+          # never by a routine merge to main. Everything else (including a
+          # non-version pubspec.yaml edit, e.g. a dependency bump) skips
+          # the signed build entirely.
+          RELEASE=false
+          if [ "${{ github.event_name }}" = "push" ] && echo "$ALL_FILES" | jq -e 'index("pubspec.yaml")' > /dev/null; then
+            OLD_VERSION=$(git show HEAD^1:pubspec.yaml | grep '^version:' || true)
+            NEW_VERSION=$(grep '^version:' pubspec.yaml || true)
+            if [ "$OLD_VERSION" != "$NEW_VERSION" ]; then
+              RELEASE=true
+            fi
+          fi
+          echo "release=$RELEASE" >> "$GITHUB_OUTPUT"
