@@ -16,6 +16,11 @@ by referencing it (`Closes #<n>`) in the PR that resolves it.
 
 ## ✅ Done
 
+- [x] 📚 ⭐⭐ - **Add a French translation of the GitHub Pages site** (issue #378)
+  - **Verified**: 2026-09-09 (PR #379)
+  - **What was done**: direct ask from the user — the landing page was English-only. Split into `docs/index.html` (English, root) and `docs/fr/index.html` (French), sharing an extracted `docs/assets/style.css`. Redirects a first-time visitor to the French page when the browser's language is French, with a manual toggle that records an explicit choice in `localStorage`.
+  - **Final validation**: docs-only change — both pages parse cleanly; served locally and verified all paths resolve (200) from both the root and the `fr/` subfolder.
+
 - [x] ⚡ ⭐⭐ - **Batch-generate and persist quiz questions to cut Gemini API calls** (issue #375)
   - **Verified**: 2026-09-09 (PR #376)
   - **What was done**: direct suggestion from the user — the quiz spent one Gemini API call per round even on a repeat visit to the same entry. Now requests a batch (3) per call and persists the leftovers in a new `quiz_questions` table (schema v11), reused on a later round instead of another API call. Invalidated on regenerate/delete.
