@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -262,6 +263,62 @@ void main() {
       expect(find.text('1889'), findsOneWidget);
       expect(find.text('1789'), findsOneWidget);
       expect(find.text('Où était-ce ?'), findsNothing);
+    });
+
+    // Found via user feedback: while a Gemini text-comprehension question
+    // is still being generated, the guess-the-place placeholder text used
+    // to show anyway — misleading, since it isn't necessarily the
+    // question that ends up being asked.
+    testWidgets(
+        'while a text-comprehension question is loading, does not show the '
+        'guess-the-place placeholder question', (tester) async {
+      await seedEntries(5, tester: tester);
+      final responseCompleter = Completer<({int statusCode, String body})>();
+      final client = fakeDio((options) async => responseCompleter.future);
+      final guide = AudioGuideService(
+        nativeTtsService: FakeNativeTts(),
+        geminiApiService: GeminiApiService(apiKey: 'test-key', dioClient: client),
+      );
+
+      await tester.runAsync(() => tester.pumpWidget(wrapWithProviders(
+            const QuizScreen(),
+            settings: settings,
+            guide: guide,
+            history: history,
+          )));
+      await tester.pump();
+      await tester.pump();
+
+      // Still waiting on the Gemini call.
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.text('Où était-ce ?'), findsNothing);
+
+      responseCompleter.complete((
+        statusCode: 200,
+        body: jsonEncode({
+          'candidates': [
+            {
+              'content': {
+                'parts': [
+                  {
+                    'text': jsonEncode({
+                      'question': 'En quelle année ?',
+                      'correctAnswer': '1889',
+                      'wrongAnswers': ['1789', '1900', '1850'],
+                    }),
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+      ));
+      await tester.runAsync(
+          () async => Future<void>.delayed(const Duration(milliseconds: 20)));
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text('En quelle année ?'), findsOneWidget);
     });
 
     testWidgets('falls back to guess-the-place when question generation '
