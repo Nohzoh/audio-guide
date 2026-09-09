@@ -12,58 +12,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # See build-android.yml's "changes" job for why this is a job-level skip
-  # rather than paths-ignore on the trigger (a required check that never
-  # triggers blocks merging forever; a skipped one satisfies it).
+  # #388: shared with build-android.yml — see changes.yml.
   changes:
-    runs-on: ubuntu-latest
-    permissions:
-      pull-requests: read
-    outputs:
-      code: ${{ steps.decide.outputs.code }}
-    steps:
-      - name: Checkout code
-        if: github.event_name != 'workflow_dispatch'
-        uses: actions/checkout@v7
-
-      - name: List changed files
-        if: github.event_name != 'workflow_dispatch'
-        uses: dorny/paths-filter@v4
-        id: filter
-        with:
-          list-files: json
-          filters: |
-            all:
-              - '**'
-
-      - name: Decide
-        id: decide
-        env:
-          # #382: passed via env rather than interpolated straight into the
-          # script below — a changed file's name is attacker-controlled
-          # (anyone opening a PR picks their own file names), and this job
-          # runs on `push` to main, a privileged trigger with write access
-          # to the default-branch cache scope. Interpolating it directly
-          # (as this used to) let a crafted file name inject arbitrary
-          # shell syntax (CodeQL actions/cache-poisoning/code-injection).
-          ALL_FILES: ${{ steps.filter.outputs.all_files }}
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "code=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          # See build-android.yml's "changes" job for why this is plain
-          # bash rather than dorny/paths-filter's own pattern combination.
-          CODE=false
-          echo "$ALL_FILES" | jq -r '.[]' > /tmp/changed_files.txt
-          while IFS= read -r f; do
-            case "$f" in
-              *.md|benchmark/*|docs/*|.github/workflows/benchmark.yml) ;;
-              *) echo true > /tmp/code_flag ;;
-            esac
-          done < /tmp/changed_files.txt
-          [ -f /tmp/code_flag ] && CODE=true
-          echo "code=$CODE" >> "$GITHUB_OUTPUT"
+    uses: ./.github/workflows/changes.yml
 
   test:
     needs: changes
