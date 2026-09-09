@@ -18,8 +18,23 @@ by referencing it (`Closes #<n>`) in the PR that resolves it.
 
 - [x] 🔧 ⭐⭐ - **Consolidate the duplicated CI changes job into one reusable workflow** (issue #388)
   - **Verified**: 2026-09-09 (PR #393)
-  - **What was done**: third sub-issue of the CI pipeline review (#385). `test.yml` and `build-android.yml` each carried an independently-maintained copy of the docs-only-change path-filtering job — already caused real drift (#317's stale merge-ref missed the #382 fix). Extracted to `.github/workflows/changes.yml`, called via `workflow_call` from both.
-  - **Final validation**: docs/CI-only change; the PR's own `changes`/`test`/`build` checks confirm the reusable-workflow call works correctly.
+  - **What was done**: third sub-issue of the CI pipeline review (#385). `test.yml` and `build-android.yml` each carried an independently-maintained copy of the docs-only-change path-filtering job — already caused real drift (#317's stale merge-ref missed the #382 fix). Extracted to `.github/workflows/changes.yml`, called via `workflow_call` from both. Along the way: GitHub requires the *caller* job to explicitly re-grant at least the permissions the reusable workflow's own job requests, or the whole workflow file is rejected outright at startup (a hard-won lesson, documented in the workflow itself).
+  - **Final validation**: docs/CI-only change; a manual `workflow_dispatch` run confirms the reusable-workflow call and its permissions grant work correctly end to end.
+
+- [x] 🔒 ⭐⭐ - **Use a throwaway CI-only signing key for all pull_request builds** (issue #390)
+  - **Verified**: 2026-09-09 (PR #394)
+  - **What was done**: fifth sub-issue of the CI pipeline review (#385). Extended the Dependabot-specific throwaway signing key (#382 follow-up) to *every* `pull_request` build, not just Dependabot's — a regular same-repo PR's release-build sanity check never needed the real production keystore either. Same treatment for the Telegram secrets.
+  - **Final validation**: docs/CI-only change; the PR's own `build` check (a same-repo, non-Dependabot PR) is the real end-to-end test of the new `CI_KEYSTORE_*` path.
+
+- [x] 🔒 ⭐⭐ - **Remove the embedded Play Store publish step from build-android.yml** (issue #387)
+  - **Verified**: 2026-09-09 (PR #392)
+  - **What was done**: second sub-issue of the CI pipeline review (#385), directly motivated by a real incident (a diagnostic `workflow_dispatch` run unexpectedly published to the Play Store alpha track). `build-android.yml` now only ever builds; all publishing goes exclusively through `publish-play-store.yml`.
+  - **Final validation**: docs/CI-only change; the PR's own `build` check is the real test.
+
+- [x] ⚡ ⭐ - **CI quick wins: pin Java version, skip unused SDK defaults, drop debug residue** (issue #386)
+  - **Verified**: 2026-09-09 (PR #391)
+  - **What was done**: first sub-issue of the CI pipeline review (#385). Pinned `actions/setup-java` to an exact Zulu patch instead of a floating version, skipped `setup-android`'s unused default package install, removed a stale unconditional debug-dump step.
+  - **Final validation**: docs/CI-only change; the PR's own `build` check is the real test.
 
 - [x] 🔒 ⭐⭐ - **Fix CodeQL cache-poisoning injection + missing job permissions** (issue #382)
   - **Verified**: 2026-09-09 (PR #383)

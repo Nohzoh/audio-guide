@@ -143,26 +143,30 @@ private key to Keeper, update the public key constant in
 version (old installs keep trusting the old public key until they
 update).
 
-### Publishing to Play Store — two paths (2026-08-22 onward)
+### Publishing to Play Store — one path (2026-09-09 onward)
 
-- **`build-android.yml`'s `workflow_dispatch`** — full fresh build (~8-10
-  min) then publish, always against `main`'s current tip. Use this when
-  no recent build exists yet, or you need to publish a commit that was
-  never built on `main`.
-- **`publish-play-store.yml`'s `workflow_dispatch`** — the fast path:
-  reuses the AAB/mapping artifacts from an already-completed
-  `build-android.yml` run (defaults to the latest successful one on
-  `main`; pass a specific `run_id` to target another) instead of
-  rebuilding. Every push to `main` already produces a tested AAB
-  artifact (30-day retention), so this is the normal choice once one
-  exists — it skips the rebuild entirely. **Important**: it checks out
-  the repo at *that build's* commit to read `distribution/whatsnew/*`
-  and the package name — not whatever `main` is at dispatch time — so
-  the release notes below must already be committed and merged *before*
-  the build you're about to publish ran, not just before you click
-  "Run workflow." If they're not, either use `build-android.yml`'s path
-  instead (always fresh) or push the whatsnew update first and wait for
-  the next `main` build.
+`build-android.yml` never publishes (#387) — it only ever builds, on
+every trigger including its own `workflow_dispatch`, so a manual
+re-run for any reason (a plain rebuild, a CI diagnostic) can never
+accidentally reach the Play Store. All publishing goes through:
+
+- **`publish-play-store.yml`'s `workflow_dispatch`** — reuses the
+  AAB/mapping artifacts from an already-completed `build-android.yml`
+  run (defaults to the latest successful one on `main`; pass a
+  specific `run_id` to target another) instead of rebuilding. Every
+  push to `main` already produces a tested AAB artifact (30-day
+  retention), so this is normally already available. **Important**: it
+  checks out the repo at *that build's* commit to read
+  `distribution/whatsnew/*` and the package name — not whatever `main`
+  is at dispatch time — so the release notes below must already be
+  committed and merged *before* the build you're about to publish ran,
+  not just before you click "Run workflow." If they're not, push the
+  whatsnew update first and wait for the next `main` build.
+
+If no recent build exists yet, or you need to publish a commit that
+was never built on `main`, dispatch `build-android.yml` first (a plain
+build, no track/publish involved) and wait for it to finish, then
+dispatch `publish-play-store.yml` with that run's ID.
 
 ### Play Store Release Notes (2026-08-20 onward)
 
